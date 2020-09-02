@@ -723,13 +723,13 @@ void init() {
 
 int main() {
     init();
-    //simulation<random_flood>();
+    simulation<random_flood>();
     //simulation<from_near_to_far<false> >();
-    //simulation<from_near_to_far<true> >();
+    simulation<from_near_to_far<true> >();
     simulation<static_build_tree>();
-    //k_means();
+    k_means();
     //simulation<k_means_cluster<1> >();
     //simulation<k_means_cluster<2> >();
-    //simulation<k_means_cluster<4> >();
+    simulation<k_means_cluster<4> >();
     return 0;
 }
