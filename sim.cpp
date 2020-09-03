@@ -11,12 +11,14 @@ using namespace std;
 const int N = 8500;
 const double pi = acos(-1);
 const double R = 6371000; // radius of the earth
+const int MAX_DEPTH = 20;
 //typedef unsigned int int;
 int n;
 mt19937 rd(1000);
 bool recv_flag[N];
 int recv_parent[N];
 double recv_time[N]; 
+int depth[N];
 
 int mal_flag[N];
 
@@ -99,13 +101,16 @@ class graph {
     }
 
     void print_info() {
+        double avg_outbound = 0;
         for (int i = 0; i < n; i++) {
             fprintf(stderr, "node %d's outbound:", i);
+            avg_outbound += out_bound[i].size();
             for (auto j : out_bound[i])
                 fprintf(stderr, " %d", j);
             fprintf(stderr, "\n");
         }
-            
+        avg_outbound /= n;
+        fprintf(stderr, "%.2f\n", avg_outbound);
     }
 };
 
@@ -136,7 +141,7 @@ class random_flood : public basic_algo {
   private: 
     graph G; // random graph
     const int deg = 8;
-    static constexpr const char* algo_name = "random_flood";
+    static constexpr const char* algo_name = "random_flood8";
 
   public:
     random_flood(int n, coordinate *coord, int root = 0) : G(n) {
@@ -328,8 +333,8 @@ class static_build_tree : public basic_algo {
             int cur_parent = 0;
             for (int j = 0; j <= i; j++) {
                 int v = list[j];
-                if (out_bound_cnt[v] < dist_out && dist[v] + distance(coord[u], coord[v]) < cur_min) {
-                    cur_min = distance(coord[u], coord[v]) + dist[v];
+                if ((v == root && out_bound_cnt[v] < 32) || (out_bound_cnt[v] < dist_out && dist[v] + distance(coord[u], coord[v]) + 50 < cur_min)) {
+                    cur_min = distance(coord[u], coord[v]) + dist[v] + 50;
                     cur_parent = v;
                 }
             }
@@ -514,13 +519,79 @@ class k_means_cluster : public basic_algo {
     }
 };
 
+class block_p2p : public basic_algo {
+// block p2p
+// firstly build K clusters (K = 8)
+// Inside a cluster, it connects Chord-type graph
+// Every cluster has one entry point. One entry point connects to all other entry points.
+
+  private: 
+    graph G; // random graph
+    const int random_out = 4;
+    const int dist_out = 4;
+    static constexpr const char* algo_name = "blockp2p";
+
+
+  public: 
+    block_p2p(int n, coordinate *coord, int root = 0) : G(n) {
+        // the first node in every cluster's list is the entry points
+        for (int i = 0; i < K; i++)
+            for (int j = 0; j < K; j++)
+                if (i != j) {
+                    G.add_edge(cluster_list[i][0], cluster_list[j][0]);
+                }
+            
+        // connect a Chord-type graph
+        for (int i = 0; i < K; i++) {
+            int cn = cluster_cnt[i];
+            for (int j = 0; j < cn; j++) {
+                int u = cluster_list[i][j];
+                if (cn <= 8) {
+                    // if the cluster size is small, connect it as a fully-connected graph
+                    for (auto v : cluster_list[i])
+                        if (u != v)
+                            G.add_edge(u, v);
+                } else {
+                    // Chord-type graph
+                    for (int k = 1; k < cn; k *= 2)  
+                        G.add_edge(u, cluster_list[i][(j + k) % cn]); // connect u and (u + 2^k) mod cn
+                    G.add_edge(u, cluster_list[i][(j + cn / 2) % cn]); // connect the diagonal
+                }
+                //G.add_edge(u, cluster_list[i][0]);
+            }
+        }
+    }
+        
+    vector<int> respond(message msg)  {
+        int u = msg.dst;
+        vector<int> nb_u = G.outbound(u);
+        vector<int> ret;
+        //int cnt = 0;
+        for (auto v : nb_u) 
+            if (v != msg.src) {
+                ret.push_back(v);
+                //if (msg.step > 3 && cnt >= 2) break;
+            }
+        return ret;
+    }
+
+    static const char* get_algo_name() {return algo_name;} 
+    void print_info() {
+        G.print_info();
+    }
+};
+
 
 
 class test_result {
   public : 
     double dup_rate;
     vector<double> latency;
-    test_result() : dup_rate(0), latency(21, 0) {}
+    double depth_cdf[MAX_DEPTH];
+
+    test_result() : dup_rate(0), latency(21, 0) {
+        memcle(depth_cdf);
+    }
     void print_info() {
         fprintf(stderr, "dup_rate");
         for (int i = 0; i < 21; i++)
@@ -544,7 +615,7 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
 // Delay model: 
 // When a node receives a message, it has 50ms delay to handle it. Then it sends to other nodes without delay.
 
-    srand(1);
+    srand(100);
     test_result result;
 
     // initialize test algorithm class
@@ -559,6 +630,7 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
         memcle(recv_flag);
         memcle(recv_time);
         memset(recv_parent, -1, sizeof(recv_parent));
+        memcle(depth);
         vector<int> recv_list;
 
         int dup_msg = 0;
@@ -585,9 +657,12 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
             recv_time[u] = msg.recv_time;
             recv_parent[u] = msg.src;
             recv_list.push_back(u);
+            if (u != root)
+                depth[u] = depth[msg.src] + 1;
 
             auto relay_list = algo.respond(msg);
             double delay_time = 50; // delay_time = 10ms per link
+            //double delay_time = 0; // delay_time = 10ms per link
             if (u == root) delay_time = 0;
             for (auto v : relay_list) {
                 double dist = distance(coord[u], coord[v]) + 20; // rtt : 10 + distance(u, v)
@@ -597,16 +672,34 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
             }
         }
 
+        for (int i = 0; i < n; i++)
+            if (recv_flag[i] == false && mal_flag[i] == false) {
+                recv_time[i] = 1e9;
+                recv_list.push_back(i);
+                depth[i] = MAX_DEPTH - 1; // depth = 19 ---- uncovered node
+            }
 
         int non_mal_node = recv_list.size();
-        result.dup_rate += (double(dup_msg) / (dup_msg + non_mal_node)) / rept_time; 
+        result.dup_rate += (double(dup_msg) / (dup_msg + non_mal_node));
+
+        for (int u: recv_list)
+            result.depth_cdf[depth[u]] += 1;
+        for (int i = 0; i < MAX_DEPTH; i++)
+            result.depth_cdf[i] /= non_mal_node;
 
         int cnt = 0;
         for (double pct = 0.05; pct <= 1; pct += 0.05, cnt++) {
             int i = non_mal_node * pct;
-            result.latency[cnt] += recv_time[recv_list[i]]  / rept_time;
+            result.latency[cnt] += recv_time[recv_list[i]];
         }
     }
+
+    result.dup_rate /= rept_time; 
+    for (int i = 0; i < MAX_DEPTH; i++) 
+        result.depth_cdf[i] /= rept_time; 
+    for (size_t i = 0; i < result.latency.size(); i++)
+        result.latency[i] /= rept_time;
+
 
     // Print the tree structure (only when the root is 0)
 
@@ -650,6 +743,9 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
             mal_flag[picked_num] = true;
         }
         
+        //for (int i = 0; i < n; i++)
+        //    fprintf(stderr, "%d", mal_flag[i]);
+        
 
         // 2) simulate the message at source i
         //int normal_node = n - mal_node * n;
@@ -661,6 +757,8 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
                 result.dup_rate += res.dup_rate;
                 for (size_t i = 0; i < result.latency.size(); i++)
                     result.latency[i] += res.latency[i];
+                for (int i = 0; i < MAX_DEPTH; i++)
+                    result.depth_cdf[i] += res.depth_cdf[i];
             }
         }
     }
@@ -668,13 +766,19 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
     result.dup_rate /= test_time;
     for (size_t i = 0; i < result.latency.size(); i++)
         result.latency[i] /= test_time;
+    for (int i = 0; i < MAX_DEPTH; i++)
+        result.depth_cdf[i] /= test_time;
 
     fprintf(output, "%s\n", algo_T::get_algo_name());
     printf("%s\n", algo_T::get_algo_name());
     fprintf(output, "#node, mal node, Dup Rate, ");
-    for (double p = 0.05; p <= 1; p += 0.05)
+    printf("#node, mal node, Dup Rate, ");
+    for (double p = 0.05; p <= 1; p += 0.05) {
         fprintf(output, "%.2f, ", p);
+        printf("%.2f, ", p);
+    }
     fprintf(output, "\n");
+    printf("\n");
 
     fprintf(output, "%d, %.2f, %.2f, ", n, mal_node, result.dup_rate);
     printf("%d, %.2f, %.2f, ", n, mal_node, result.dup_rate);
@@ -683,6 +787,22 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
     for (double p = 0.05; p <= 1; p += 0.05, cnt++) {
         fprintf(output, "%.2f, ", result.latency[cnt]);
         printf("%.2f, ", result.latency[cnt]);
+    }
+    fprintf(output, "\n");
+    printf("\n");
+
+    fprintf(output, "depth pdf\n");
+    printf("depth pdf\n");
+    for (int i = 0; i < MAX_DEPTH; i++) {
+        fprintf(output, "%d, ", i);
+        printf("%d, ", i);
+    }
+    fprintf(output, "\n");
+    printf("\n");
+
+    for (int i = 0; i < MAX_DEPTH; i++) {
+        fprintf(output, "%.4f, ", result.depth_cdf[i]);
+        printf("%.4f, ", result.depth_cdf[i]);
     }
     fprintf(output, "\n");
     printf("\n");
@@ -702,7 +822,7 @@ void init() {
         fscanf(f, "%lf%lf", &coord[i].lat, &coord[i].lon);
     }
 
-    n = 1500;
+    n = 1000;
     
     for (int i = 0; i < n; i++) {
         vector<pair<double, int> > rk;
@@ -723,13 +843,14 @@ void init() {
 
 int main() {
     init();
-    simulation<random_flood>();
+    //simulation<random_flood>();
     //simulation<from_near_to_far<false> >();
-    simulation<from_near_to_far<true> >();
-    simulation<static_build_tree>();
+    //simulation<from_near_to_far<true> >();
+    //simulation<static_build_tree>();
     k_means();
     //simulation<k_means_cluster<1> >();
     //simulation<k_means_cluster<2> >();
     simulation<k_means_cluster<4> >();
+    simulation<block_p2p>();
     return 0;
 }
