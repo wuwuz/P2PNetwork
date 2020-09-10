@@ -5,12 +5,14 @@
 #include <queue>
 #include <cmath>
 #include <string>
+#include <random>
 #define memcle(a) memset(a, 0, sizeof(a))
 
 using namespace std;
 const int N = 8500;
 const double pi = acos(-1);
 const double R = 6371000; // radius of the earth
+const double inf = 1e8;
 const int MAX_DEPTH = 20;
 //typedef unsigned int int;
 int n;
@@ -615,7 +617,7 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
 // Delay model: 
 // When a node receives a message, it has 50ms delay to handle it. Then it sends to other nodes without delay.
 
-    srand(100);
+    //srand(100);
     test_result result;
 
     // initialize test algorithm class
@@ -674,7 +676,7 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
 
         for (int i = 0; i < n; i++)
             if (recv_flag[i] == false && mal_flag[i] == false) {
-                recv_time[i] = 1e9;
+                recv_time[i] = inf;
                 recv_list.push_back(i);
                 depth[i] = MAX_DEPTH - 1; // depth = 19 ---- uncovered node
             }
@@ -691,14 +693,27 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
         for (double pct = 0.05; pct <= 1; pct += 0.05, cnt++) {
             int i = non_mal_node * pct;
             result.latency[cnt] += recv_time[recv_list[i]];
+            //if (pct == 0.95 && recv_time[recv_list[i]] < 400)
+            //    fprintf(stderr, "strange root %d, node %d\n", root, recv_list[i]);
         }
+
     }
+
 
     result.dup_rate /= rept_time; 
     for (int i = 0; i < MAX_DEPTH; i++) 
         result.depth_cdf[i] /= rept_time; 
-    for (size_t i = 0; i < result.latency.size(); i++)
-        result.latency[i] /= rept_time;
+    for (size_t i = 0; i < result.latency.size(); i++) {
+        double tmp = int(result.latency[i] / inf);
+        result.latency[i] -= tmp * inf;
+        if (rept_time - tmp == 0)
+            result.latency[i] = 0;
+        else
+            result.latency[i] /= (rept_time - tmp);
+
+        if (result.latency[i] < 0.1)
+            result.latency[i] = inf;
+    }
 
 
     // Print the tree structure (only when the root is 0)
@@ -724,6 +739,8 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
 // Firstly ranomly select some malicious nodes.
 // Then, for every honest node, do a single_root_simulation.
 
+    srand(100);
+
     test_result result;
 
     FILE* output = fopen("sim_output.csv", "a");
@@ -734,6 +751,7 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
 
     int test_time = 0;
     for (int rept = 0; rept < rept_time; rept++) {
+        //fprintf(stderr, "rept %d\n", rept);
         // 1) generate malicious node list
         memcle(mal_flag);
         for (int i = 0; i < mal_node * n; i++) {
@@ -742,6 +760,10 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
                 picked_num = random_num(n);
             mal_flag[picked_num] = true;
         }
+
+        //for (int i = 0; i < K; i++)
+        //    if (mal_flag[cluster_list[i][0]] == true)
+        //        fprintf(stderr, "entry of cluster %d --- %d is malicious\n", i, cluster_list[i][0]);
         
         //for (int i = 0; i < n; i++)
         //    fprintf(stderr, "%d", mal_flag[i]);
@@ -749,14 +771,17 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
 
         // 2) simulate the message at source i
         //int normal_node = n - mal_node * n;
-        for (int i = 0; i < n; i++) {
-            if (mal_flag[i] == false) {
+        for (int root = 0; root < n; root++) {
+            if (mal_flag[root] == false) {
                 //fprintf(stderr, "%d", i);
                 test_time++;
-                auto res = single_root_simulation<algo_T>(i, 1, mal_node);
+                auto res = single_root_simulation<algo_T>(root, 1, mal_node);
                 result.dup_rate += res.dup_rate;
-                for (size_t i = 0; i < result.latency.size(); i++)
+                for (size_t i = 0; i < result.latency.size(); i++) {
                     result.latency[i] += res.latency[i];
+                    //if (i == 19 && result.latency[i] > 0)
+                    //    fprintf(stderr, "root %d latency sum at %.2f %.2f\n", root, 0.05 * i, result.latency[i]);
+                }
                 for (int i = 0; i < MAX_DEPTH; i++)
                     result.depth_cdf[i] += res.depth_cdf[i];
             }
@@ -764,11 +789,17 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
     }
 
     result.dup_rate /= test_time;
-    for (size_t i = 0; i < result.latency.size(); i++)
-        result.latency[i] /= test_time;
+    for (size_t i = 0; i < result.latency.size(); i++) {
+        double tmp = int(result.latency[i] / inf);
+        result.latency[i] -= tmp * inf;
+        result.latency[i] /= (test_time - tmp);
+        if (test_time - tmp == 0)
+            result.latency[i] = 0;
+    }
     for (int i = 0; i < MAX_DEPTH; i++)
         result.depth_cdf[i] /= test_time;
 
+    //fprintf(stderr, "latency sum at 0.95 %.2f\n", result.latency[19]);
     fprintf(output, "%s\n", algo_T::get_algo_name());
     printf("%s\n", algo_T::get_algo_name());
     fprintf(output, "#node, mal node, Dup Rate, ");
@@ -822,7 +853,7 @@ void init() {
         fscanf(f, "%lf%lf", &coord[i].lat, &coord[i].lon);
     }
 
-    n = 1000;
+    n = 500;
     
     for (int i = 0; i < n; i++) {
         vector<pair<double, int> > rk;
@@ -842,15 +873,21 @@ void init() {
 }
 
 int main() {
+    int rept = 5;
+    double mal_node = 0.0;
     init();
-    //simulation<random_flood>();
-    //simulation<from_near_to_far<false> >();
-    //simulation<from_near_to_far<true> >();
-    //simulation<static_build_tree>();
     k_means();
-    //simulation<k_means_cluster<1> >();
-    //simulation<k_means_cluster<2> >();
-    simulation<k_means_cluster<4> >();
-    simulation<block_p2p>();
+
+    for (int i = 0; i < 10; i++) {
+        simulation<random_flood>(rept, mal_node);
+        //simulation<from_near_to_far<false> >();
+        simulation<from_near_to_far<true> >();
+        simulation<static_build_tree>();
+        //simulation<k_means_cluster<1> >();
+        //simulation<k_means_cluster<2> >();
+        simulation<k_means_cluster<4> >(rept, mal_node);
+        simulation<block_p2p>(rept, mal_node);
+        mal_node += 0.05;
+    }
     return 0;
 }
