@@ -880,11 +880,11 @@ int main() {
 
     for (int i = 0; i < 10; i++) {
         simulation<random_flood>(rept, mal_node);
-        //simulation<from_near_to_far<false> >();
-        simulation<from_near_to_far<true> >();
-        simulation<static_build_tree>();
-        //simulation<k_means_cluster<1> >();
-        //simulation<k_means_cluster<2> >();
+        //simulation<from_near_to_far<false> >(rept, mal_node);
+        simulation<from_near_to_far<true> >(rept, mal_node);
+        simulation<static_build_tree>(rept, mal_node);
+        //simulation<k_means_cluster<1> >(rept, mal_node);
+        //simulation<k_means_cluster<2> >(rept, mal_node);
         simulation<k_means_cluster<4> >(rept, mal_node);
         simulation<block_p2p>(rept, mal_node);
         mal_node += 0.05;
