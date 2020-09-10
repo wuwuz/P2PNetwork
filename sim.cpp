@@ -853,7 +853,7 @@ void init() {
         fscanf(f, "%lf%lf", &coord[i].lat, &coord[i].lon);
     }
 
-    n = 500;
+    n = 1000;
     
     for (int i = 0; i < n; i++) {
         vector<pair<double, int> > rk;
