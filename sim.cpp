@@ -6,6 +6,7 @@
 #include <cmath>
 #include <string>
 #include <random>
+#include <memory>
 #define memcle(a) memset(a, 0, sizeof(a))
 
 using namespace std;
@@ -70,13 +71,12 @@ bool operator>(const message &a, const message &b) {
 }
 
 class graph {
-  private: 
+  public:
     vector<int> in_bound[N];
     vector<int> out_bound[N];
     int n; 
     int m;
 
-  public:
     graph(int _n) : n(_n) {
        m = 0; 
     }
@@ -91,6 +91,28 @@ class graph {
         in_bound[v].push_back(u);
         m++;
         return true;
+    }
+
+    void del_edge(int u, int v) {
+        bool ok = false;
+        for (size_t i = 0; i < out_bound[u].size(); i++)
+            if (out_bound[u][i] == v) {
+                int len = out_bound[u].size();
+                out_bound[u][i] = out_bound[u][len - 1];
+                out_bound[u].pop_back();
+                ok = true;
+                break;
+            }
+        if (ok == false)
+            printf("cannot del an edge\n");
+
+        for (size_t i = 0; i < in_bound[v].size(); i++)
+            if (in_bound[v][i] == u) {
+                int len = in_bound[v].size();
+                in_bound[v][i] = in_bound[v][len - 1];
+                in_bound[v].pop_back();
+                break;
+            }
     }
 
     vector<int> outbound(int u) {
@@ -146,6 +168,7 @@ class random_flood : public basic_algo {
     static constexpr const char* algo_name = "random_flood8";
 
   public:
+    const static bool specified_root = false;
     random_flood(int n, coordinate *coord, int root = 0) : G(n) {
         // firstly connect a ring, then random connect
 
@@ -227,6 +250,7 @@ class from_near_to_far : public basic_algo {
     static constexpr const char* algo_name = "near_to_far";
 
   public:
+    const static bool specified_root = true;
     vector<pair<double, int> > dist_list;
     vector<int> rank;
 
@@ -321,6 +345,7 @@ class static_build_tree : public basic_algo {
     int list[N];
   
   public: 
+    const static bool specified_root = true;
     static_build_tree(int n, coordinate *coord, int root = 0) : G(n) {
         memcle(dist);
         memcle(out_bound_cnt);
@@ -442,6 +467,7 @@ class k_means_cluster : public basic_algo {
 
 
   public: 
+    const static bool specified_root = true;
     k_means_cluster(int n, coordinate *coord, int root = 0) : G(n) {
         
         // for every cluster, root builds root_deg_per_cluster connections
@@ -521,6 +547,192 @@ class k_means_cluster : public basic_algo {
     }
 };
 
+class perigee_observation {
+  public:
+    vector<double> obs; // the time difference
+    int u; // src
+    int v; // dst
+
+    perigee_observation() {}
+    perigee_observation(int _u, int _v) {
+        init(_u, _v);
+    }
+    void init(int _u, int _v) {
+        u = _u;
+        v = _v;
+        obs.clear();
+    }
+
+    void add(double t) {
+        if (t < 0) {
+            printf("t = %.2f\n", t);
+            printf("(%d, %d)\n", u, v);
+        }
+        obs.push_back(t);
+    }
+
+    pair<double, double> get_lcb_ucb() {
+        int len = obs.size();
+        if (len == 0) {
+            return make_pair(1e10, 1e10);
+        }
+        int pos = int(len * 0.9);
+        //use fast selection to avoid sorting
+        nth_element(obs.begin(), obs.begin() + pos, obs.end()); 
+
+        double per90obs = obs[pos];
+        double bias = 125.0 * sqrt(log(len) / (2 * len));
+        return make_pair(per90obs - bias, per90obs + bias);
+    }
+};
+
+class perigee_ubc : public basic_algo {
+// perigee_ubc
+// https://arxiv.org/pdf/2006.14186.pdf
+// Firstly, execute warmup phase for 1000 random messages.
+// For an edge (u, v), node v will maintain an observation array O.
+// When u is sending a message m to v, v will store the timestamp of the 
+// receiving time T(u, v, m), and the time difference since v firstly sees the message: 
+// T(u, v, m)  - min_u' T(u', v, m)
+// For every 10 message, every nodes updates their outbound based on the UBC method
+
+  private: 
+    graph G; // random graph
+    static constexpr int deg = 8;
+    static constexpr const char* algo_name = "perigee_ubc";
+    //perigee_observation obs[N][deg];
+    vector<unique_ptr<perigee_observation> > obs[N];
+
+    // use for warmup phase
+    static constexpr int total_warmup_message = 100;
+    static constexpr int warmup_round_len = 100; // for every 100 message, execute a reselection
+    int recv_flag[N]; // keep track of the newest warmup message token
+    double recv_time[N];  // record the new message deliever time
+
+  public: 
+    const static bool specified_root = false;
+    perigee_ubc(int n, coordinate *coord, int root = 0) : G(n) {
+        // TODO: inbound has far more than 8
+        for (int u = 0; u < n; u++) {
+            int dg = deg;
+            //if (u == root)
+            //    dg = 32 - 1;
+            for (int k = 0; k < dg; k++) {
+                int v = random_num(n);
+                while (G.add_edge(u, v) == false)
+                    v = random_num(n);
+                //obs[v][k].init(u, v);
+                unique_ptr<perigee_observation> ptr(new perigee_observation(u, v));
+                obs[v].push_back(move(ptr));
+            }
+        }
+
+        //warmup phase
+        memset(recv_flag, -1, sizeof(recv_flag));
+
+        for (int warmup_message = 0; warmup_message < total_warmup_message; warmup_message++) {
+
+            int root = random_num(n);
+
+            priority_queue<message, vector<message>, greater<message> > msg_queue;
+            msg_queue.push(message(root, root, root, 0, 0, 0)); // initial message
+
+            for (; !msg_queue.empty(); ) {
+                message msg = msg_queue.top();
+                msg_queue.pop();
+
+                int u = msg.dst; // current node
+
+                // a new message
+                if (recv_flag[u] < warmup_message) {
+                    recv_flag[u] = warmup_message;
+                    recv_time[u] = msg.recv_time;
+
+                    if (mal_flag[u] == false) {
+                        auto relay_list = respond(msg);
+                        double delay_time = 50; // delay_time = 10ms per link
+                        if (u == root) delay_time = 0;
+                        for (auto v : relay_list) {
+                            double dist = distance(coord[u], coord[v]) + 20; // rtt : 10 + distance(u, v)
+                            message new_msg = message(root, u, v, msg.step + 1, recv_time[u] + delay_time, recv_time[u] + dist + delay_time);
+                            msg_queue.push(new_msg);
+                        }
+                    }
+
+                } 
+                // add observation, find the corresponding queue
+                for (auto &it: obs[u]) 
+                    if (it -> u == msg.src) 
+                        it -> add(msg.recv_time - recv_time[u]);
+            }
+
+            if ((warmup_message + 1) % warmup_round_len == 0) {
+                printf("%d\n", warmup_message);
+                for (int i = 0; i < n; i++) 
+                    neighbor_reselection(i);
+                printf("finish\n");
+            }
+        }
+    }
+
+    void neighbor_reselection(int v) {
+        double max_lcb = 0;
+        int arg_max_lcb = 0;
+        double min_ucb = 1e18;
+        int arg_min_ucb = 0;
+
+        for (size_t i = 0; i < obs[v].size(); i++) {
+            auto lcb_ucb = obs[v][i] -> get_lcb_ucb();
+            if (lcb_ucb.first > max_lcb) {
+                arg_max_lcb = i;
+                max_lcb = lcb_ucb.first;
+            }
+            if (lcb_ucb.second < min_ucb) {
+                arg_min_ucb = i;
+                min_ucb = lcb_ucb.second;
+            }
+        }
+
+        if (max_lcb > min_ucb) {
+            int u = obs[v][arg_max_lcb] -> u;
+            auto lcb_ucb = obs[v][arg_max_lcb] -> get_lcb_ucb();
+            int len = obs[v][arg_max_lcb] -> obs.size();
+
+            auto bst = obs[v][arg_min_ucb] -> get_lcb_ucb();
+            int bst_u = obs[v][arg_min_ucb] -> u;
+            printf("best (%.2f %.2f) (%d, %d), distance = %.2f\n", bst.first, bst.second, bst_u, v, distance(coord[bst_u], coord[v]));
+            printf("worst (%.2f %.2f) (%d, %d), distance = %.2f\n", lcb_ucb.first, lcb_ucb.second, u, v, distance(coord[u], coord[v]));
+            G.del_edge(u, v);
+
+            int new_u = random_num(n);
+            while (G.add_edge(new_u, v) == false)
+                new_u = random_num(n);
+
+            obs[v][arg_max_lcb].reset(new perigee_observation(new_u, v));
+        }
+    }
+        
+    vector<int> respond(message msg)  {
+        int u = msg.dst;
+        vector<int> nb_u = G.outbound(u);
+        vector<int> ret;
+        int cnt = 0;
+        for (auto v : nb_u) 
+            if (v != msg.src) {
+                ret.push_back(v);
+                cnt++;
+            }
+        return ret;
+    }
+
+    static const char* get_algo_name() {return algo_name;} 
+    void print_info() {
+        G.print_info();
+    }
+};
+
+
+
 class block_p2p : public basic_algo {
 // block p2p
 // firstly build K clusters (K = 8)
@@ -535,6 +747,7 @@ class block_p2p : public basic_algo {
 
 
   public: 
+    const static bool specified_root = false;
     block_p2p(int n, coordinate *coord, int root = 0) : G(n) {
         // the first node in every cluster's list is the entry points
         for (int i = 0; i < K; i++)
@@ -607,7 +820,7 @@ class test_result {
 };
 
 template <class algo_T>
-test_result single_root_simulation(int root, int rept_time = 1, double mal_node = 0.0) {
+test_result single_root_simulation(int root, int rept_time, double mal_node, shared_ptr<algo_T> algo) {
 // Test the latency of the message originated from [root].
 // 1) Use a global heap to maintain the message queue and fetch the next delivered message.
 // 2) For every delivered message, ignore it if it is a duplicated message.
@@ -620,8 +833,10 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
     //srand(100);
     test_result result;
 
-    // initialize test algorithm class
-    algo_T algo(n, coord, root);
+    // initialize test algorithm class if it needs a specific root
+    if (algo_T::specified_root == true) {
+        algo.reset(new algo_T(n, coord, root));
+    }
     //algo.print_info();
 
     for (int rept = 0; rept < rept_time; rept++)  {
@@ -643,8 +858,6 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
 
             int u = msg.dst; // current node
 
-
-
             // malicious node -- no response
             if (mal_flag[u] == true) continue;
 
@@ -662,7 +875,7 @@ test_result single_root_simulation(int root, int rept_time = 1, double mal_node 
             if (u != root)
                 depth[u] = depth[msg.src] + 1;
 
-            auto relay_list = algo.respond(msg);
+            auto relay_list = (*algo).respond(msg);
             double delay_time = 50; // delay_time = 10ms per link
             //double delay_time = 0; // delay_time = 10ms per link
             if (u == root) delay_time = 0;
@@ -771,11 +984,13 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
 
         // 2) simulate the message at source i
         //int normal_node = n - mal_node * n;
+
+        shared_ptr<algo_T> algo(new algo_T(n, coord, 0)); // initialize an algo instance, regardless of the root
         for (int root = 0; root < n; root++) {
             if (mal_flag[root] == false) {
                 //fprintf(stderr, "%d", i);
                 test_time++;
-                auto res = single_root_simulation<algo_T>(root, 1, mal_node);
+                auto res = single_root_simulation<algo_T>(root, 1, mal_node, algo);
                 result.dup_rate += res.dup_rate;
                 for (size_t i = 0; i < result.latency.size(); i++) {
                     result.latency[i] += res.latency[i];
@@ -853,7 +1068,7 @@ void init() {
         fscanf(f, "%lf%lf", &coord[i].lat, &coord[i].lon);
     }
 
-    n = 1000;
+    n = 200;
     
     for (int i = 0; i < n; i++) {
         vector<pair<double, int> > rk;
@@ -873,9 +1088,12 @@ void init() {
 }
 
 int main() {
-    int rept = 5;
+    int rept = 1;
     double mal_node = 0.0;
     init();
+    simulation<perigee_ubc>(rept, 0);
+    simulation<random_flood>(rept, 0);
+    /*
     k_means();
 
     for (int i = 0; i < 10; i++) {
@@ -889,5 +1107,6 @@ int main() {
         simulation<block_p2p>(rept, mal_node);
         mal_node += 0.05;
     }
+    */
     return 0;
 }
