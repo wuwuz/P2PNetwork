@@ -95,7 +95,7 @@ EuclideanVector<D> random_unit_vector() {
         if (!v.is_zero()) {
             return v / v.magnitude();
         }
-        break;
+        //break;
     }
 }
 
@@ -170,8 +170,8 @@ public:
         //
         // 		es = | ||xi -  xj|| - rtt | / rtt
         //
-        EuclideanVector<D> diff_vec = local_coord.vector() - remote_coord.vector();
-        double diff_mag = diff_vec.magnitude();
+        //EuclideanVector<D> diff_vec = local_coord.vector() - remote_coord.vector();
+        //double diff_mag = diff_vec.magnitude();
         double predict_rtt = estimate_rtt(local_coord, remote_coord);
         double relative_error = std::fabs(predict_rtt - rtt) / rtt;
         //printf("relative_error = %.2f\n", relative_error);

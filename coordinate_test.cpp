@@ -82,11 +82,13 @@ void larger_test() {
             //double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
             //double new_err = std::fabs(new_est_rtt - rtt) / rtt;
 
+            /*
             if (new_err > relative_err) {
                 printf("Increasing error: i = %d, x = %d, y = %d\n", i, x, y);
                 printf("rtt = %.2f, old est = %.2f, new est = %.2f\n", rtt, est_rtt, new_est_rtt);
                 printf("old = %.2f, new = %.2f\n", relative_err, new_err);
             }
+            */
         }
         //printf("%d ", x);
         //model[x].coordinate().show();

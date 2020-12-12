@@ -1093,8 +1093,8 @@ int main() {
     init();
     simulation<perigee_ubc>(rept, 0);
     simulation<random_flood>(rept, 0);
-    /*
     k_means();
+    /*
 
     for (int i = 0; i < 10; i++) {
         simulation<random_flood>(rept, mal_node);
