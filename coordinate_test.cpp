@@ -74,13 +74,13 @@ void larger_test() {
             int y = rand() % n;
             while (y == x) y = rand() % n;
 
-            double rtt = distance(real_coord[x], real_coord[y]);
-            double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
-            double relative_err = std::fabs(est_rtt - rtt) / rtt;
+            //double rtt = distance(real_coord[x], real_coord[y]);
+            //double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
+            //double relative_err = std::fabs(est_rtt - rtt) / rtt;
 
             model[x].observe(model[y].coordinate(), distance(real_coord[x], real_coord[y]));
-            double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
-            double new_err = std::fabs(new_est_rtt - rtt) / rtt;
+            //double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
+            //double new_err = std::fabs(new_est_rtt - rtt) / rtt;
 
             if (new_err > relative_err) {
                 printf("Increasing error: i = %d, x = %d, y = %d\n", i, x, y);
@@ -109,7 +109,7 @@ void larger_test() {
 
     printf("err min = %.2f\n", err_stat[0]);
     printf("err max = %.2f\n", err_stat[err_stat.size() - 1]);
-    printf("err mean = %.2f\n", err_stat[err_stat.size() / 2]);
+    printf("err median = %.2f\n", err_stat[err_stat.size() / 2]);
 }
 
 
