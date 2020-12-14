@@ -14,7 +14,7 @@ using namespace std;
 
 //dimension
 const int REAL_COORDINATE_D = 3;
-const int D = 3;
+const int D = 2;
 
 // 3 nodes test
 void simple_3_nodes_test() {
@@ -33,7 +33,7 @@ void simple_3_nodes_test() {
         int x = i % 3;
         for (int y = 0; y < 3; y++)
             if (x != y) {
-                model[x].observe(model[y].coordinate(), delay[x][y]);
+                model[x].observe(y, model[y].coordinate(), delay[x][y]);
             }
     }
 
@@ -55,6 +55,7 @@ void simple_3_nodes_test() {
         printf("\n");
     }
 }
+
 void larger_test() {
     const int n = 1000;
 
@@ -66,29 +67,61 @@ void larger_test() {
 
     VivaldiModel<D> model[n];
 
-    for (int i = 0; i < 30 * n; i++) {
+    for (int i = 0; i < 300 * n; i++) {
         int x = i % n; 
         //printf("%d\n", i);
-        for (int j = 0; j < std::min(16, n); j++) 
+        vector<int> selected_neighbor;
+        if (model[x].have_enough_neighbor) {
+
+            for (auto it = model[x].random_neighbor_set.begin();
+                    it != model[x].random_neighbor_set.end();
+                    ++it)
+                {
+                    selected_neighbor.push_back(*it);
+                }
+        } else {
+            for (int j = 0; j < 16; j++) {
+                int y = rand() % n;
+                while (y == x) y = rand() % n;
+                selected_neighbor.push_back(y);
+            }
+        }
+
+        for (auto y: selected_neighbor)
         {
-            int y = rand() % n;
-            while (y == x) y = rand() % n;
+            double rtt = distance(real_coord[x], real_coord[y]) + 100;
+            double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
+            double relative_err = std::fabs(est_rtt - rtt) / rtt;
 
-            //double rtt = distance(real_coord[x], real_coord[y]);
-            //double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
-            //double relative_err = std::fabs(est_rtt - rtt) / rtt;
+            model[x].observe(y, model[y].coordinate(), rtt);
+            //model[y].observe(x, model[x].coordinate(), rtt);
 
-            model[x].observe(model[y].coordinate(), distance(real_coord[x], real_coord[y]));
-            //double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
-            //double new_err = std::fabs(new_est_rtt - rtt) / rtt;
+            double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
+            double new_err = std::fabs(new_est_rtt - rtt) / rtt;
 
+            
             /*
-            if (new_err > relative_err) {
+            if (new_err > relative_err * 1.2) {
                 printf("Increasing error: i = %d, x = %d, y = %d\n", i, x, y);
                 printf("rtt = %.2f, old est = %.2f, new est = %.2f\n", rtt, est_rtt, new_est_rtt);
                 printf("old = %.2f, new = %.2f\n", relative_err, new_err);
             }
             */
+        }
+
+        if (x == 0) {
+            EuclideanVector<D> centroid;
+            //centroid = centroid + model[x].vector();
+            for (int y = 0; y < n; y++) {
+                //model[y].vector().show();
+                //printf("\n");
+                centroid = centroid + model[y].vector();
+            }
+            centroid = centroid / (1.0 * selected_neighbor.size() + 1.0);
+
+            printf("centroid = ");
+            centroid.show();
+            printf("centroid magnitude = %.2f\n", centroid.magnitude());
         }
         //printf("%d ", x);
         //model[x].coordinate().show();
@@ -99,7 +132,7 @@ void larger_test() {
     for (int i = 0; i < n; i++)
         for (int j = i + 1; j < n; j++) {
             double est_rtt = estimate_rtt(model[i].coordinate(), model[j].coordinate());
-            double real_rtt = distance(real_coord[i], real_coord[j]);
+            double real_rtt = distance(real_coord[i], real_coord[j]) + 100;
             //printf("est = %.2f, real = %.2f\n", est_rtt, real_rtt);
             if (real_rtt != 0) {
                 double abs_err = fabs(est_rtt - real_rtt) / real_rtt;
@@ -110,8 +143,9 @@ void larger_test() {
     sort(err_stat.begin(), err_stat.end());
 
     printf("err min = %.2f\n", err_stat[0]);
+    printf("err 50% = %.2f\n", err_stat[err_stat.size() / 2]);
+    printf("err 90% = %.2f\n", err_stat[int(err_stat.size() * 0.9)]);
     printf("err max = %.2f\n", err_stat[err_stat.size() - 1]);
-    printf("err median = %.2f\n", err_stat[err_stat.size() / 2]);
 }
 
 

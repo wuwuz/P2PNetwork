@@ -1,10 +1,16 @@
 #include <cmath>
 #include <random>
 #include <cstdio>
+#include <algorithm>
+#include <vector>
 
 const double ERROR_LIMIT = 0.25;
 const double ADDPATIVE_TIMESTEP = 0.25;
 const double FLOAT_ZERO = 1e-6;
+const double GRAVITY_RHO = 2e4;
+
+const int NEAR_NEIGHBOR_NUM = 8;
+const int RANDOM_NEIGHBOR_NUM = 16;
 
 
 //D -- dimension
@@ -39,6 +45,11 @@ public:
                 return false;
         }
         return true;
+    }
+
+    void show() {
+        for (int i = 0; i < D; i++)
+            printf("%.2f ", v[i]);
     }
 };
 
@@ -141,21 +152,44 @@ template<int D = 2>
 class VivaldiModel {
 private: 
     Coordinate<D> local_coord;
+
 public:
+    std::vector<int> random_neighbor_set;
+    bool have_enough_neighbor;
+
     VivaldiModel() {
         //Initialize the coordinate as the origin 
         //Set the height = 100 ms
         //Set the absolute error = 2
 
         local_coord = Coordinate<D>(EuclideanVector<D>(), 0, 2.0);
+
+        have_enough_neighbor = false;
     }
 
     Coordinate<D> coordinate() {
         return local_coord;
     }
 
+    EuclideanVector<D> vector() {
+        return local_coord.vector();
+    }
+
     // rtt -- round trip time (s) show()j
-    void observe(Coordinate<D> remote_coord, double rtt) {
+    void observe(int remote_id, Coordinate<D> remote_coord, double rtt) {
+        if (have_enough_neighbor == false) {
+            bool existed = false;
+            for (auto id: random_neighbor_set) 
+                if (id == remote_id) {
+                    existed = true;
+                    break;
+                }
+            if (existed == false) {
+                random_neighbor_set.push_back(remote_id);
+                if (random_neighbor_set.size() == RANDOM_NEIGHBOR_NUM)
+                    have_enough_neighbor = true;
+            }
+        }
         if (rtt == 0) {
             printf("RTT = 0");
             return;
@@ -216,29 +250,33 @@ public:
             //unit_v = unit_v / (1 + local_coord.height() + remote_coord.height());
         } else {
             // calculate the unit vector (remote ---> self)
-            unit_v = v / v.magnitude();
-            //unit_v = v / predict_rtt;
+            //unit_v = v / v.magnitude();
+            unit_v = v / predict_rtt;
         }
         // Calculate the new height of the local node:
         //
-        //      (Old height + remote.Height) * weighted_force / diff_mag.0 + old height
+        //      (Old height + remote.Height) * weighted_force / predict_rtt + old height
         //
         double new_height = local_coord.height();
-        //printf("weighted_force_mag = %.2f\n", weighted_force_magnitude);
-        if (!v.is_zero()) {
-            new_height = local_coord.height() - 
+        if (v.is_zero()) {
+            new_height = local_coord.height() + weighted_force_magnitude;
+        } else {
+            new_height = local_coord.height() +
                 (local_coord.height() + remote_coord.height()) * weighted_force_magnitude / predict_rtt;
-
-            if (new_height < 0) {
-                printf("height < 0");
-                new_height = 0;
-            }
         }
-                new_height = 0;
 
-        //new_height = 0;
+        // avoid error
+        if (new_height < 0) 
+            new_height = 0;
 
         EuclideanVector<D> new_coord = local_coord.vector() + unit_v * weighted_force_magnitude;
+
+        // Add Gravity force
+        double new_coord_mag = new_coord.magnitude();
+        EuclideanVector<D> unit_dir = new_coord / new_coord_mag;
+        //double gravity_weight = new_coord_mag * new_coord_mag / GRAVITY_RHO;
+        double gravity_weight = new_coord_mag / 500;
+        new_coord = new_coord - unit_dir * gravity_weight;
 
         //Update the local coordinate
         local_coord = Coordinate<D>(new_coord, new_height, new_error);
