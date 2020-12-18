@@ -7,6 +7,7 @@
 #include <string>
 #include <random>
 #include <memory>
+#include "coordinate.h"
 #define memcle(a) memset(a, 0, sizeof(a))
 
 using namespace std;
@@ -27,12 +28,12 @@ int mal_flag[N];
 
 
 // coordinate, using longitude and latitude
-class coordinate {
+class LatLonCoordinate {
   public:
     double lat, lon;
 };
 
-coordinate coord[N];
+LatLonCoordinate coord[N];
 // sorted_list[u] : index list sorted by the distance between nodes and the origin u
 int sorted_list[N][N];
 
@@ -40,7 +41,7 @@ int sorted_list[N][N];
 double rad(double deg) {return deg * pi / 180;}
 
 // distance between two coordinate
-double distance(const coordinate &a, const coordinate &b) {
+double distance(const LatLonCoordinate &a, const LatLonCoordinate &b) {
     if (abs(a.lat - b.lat) < 0.1 && abs(a.lon - b.lon) < 0.1)
         return 0;
     double latA = rad(a.lat), lonA = rad(a.lon);
@@ -169,7 +170,7 @@ class random_flood : public basic_algo {
 
   public:
     const static bool specified_root = false;
-    random_flood(int n, coordinate *coord, int root = 0) : G(n) {
+    random_flood(int n, LatLonCoordinate *coord, int root = 0) : G(n) {
         // firstly connect a ring, then random connect
 
         for (int u = 0; u < n; u++)
@@ -214,7 +215,7 @@ double fit_in_a_ring(double x)  {
 
 // the angle between the vector r ---> u and u ---> v should be in [-90, 90]
 // notice: simply use (lontitude, latitude) as the normal 2-d (x, y) coordinate
-bool angle_check(const coordinate &r, const coordinate &u, const coordinate &v) {
+bool angle_check(const LatLonCoordinate &r, const LatLonCoordinate &u, const LatLonCoordinate &v) {
     double x1 = u.lon - r.lon, y1 = u.lat - r.lat;
     double x2 = v.lon - u.lon, y2 = v.lat - u.lat;
     x1 = fit_in_a_ring(x1);
@@ -254,7 +255,7 @@ class from_near_to_far : public basic_algo {
     vector<pair<double, int> > dist_list;
     vector<int> rank;
 
-    from_near_to_far(int n, coordinate *coord, int root = 0) : G(n), rank(n, 0) {
+    from_near_to_far(int n, LatLonCoordinate *coord, int root = 0) : G(n), rank(n, 0) {
         // get the index of the sorted list origin at [root]
         rank[root] = 0;
         for (int i = 0; i < n - 1; i++)
@@ -346,7 +347,7 @@ class static_build_tree : public basic_algo {
   
   public: 
     const static bool specified_root = true;
-    static_build_tree(int n, coordinate *coord, int root = 0) : G(n) {
+    static_build_tree(int n, LatLonCoordinate *coord, int root = 0) : G(n) {
         memcle(dist);
         memcle(out_bound_cnt);
         memcle(list);
@@ -388,10 +389,59 @@ class static_build_tree : public basic_algo {
     }
 };
 
+const static int D = 3;
+const static int COORDINATE_UPDATE_ROUND = 100;
+VivaldiModel<D> vivaldi_model[N];
+
+void generate_virtual_coordinate() {
+    // init
+    for (int i = 0; i < n; i++)
+        vivaldi_model[i] = VivaldiModel<D>(i);
+    
+    for (int round = 0; round < COORDINATE_UPDATE_ROUND; round++) {
+        for (int x = 0; x < n; x++) {
+            vector<int> selected_neighbor;
+            if (vivaldi_model[x].have_enough_peer) {
+                for (auto &y: vivaldi_model[x].random_peer_set)
+                    selected_neighbor.push_back(y);
+            } else {
+                for (int j = 0; j < 16; j++) {
+                    int y = rand() % n;
+                    while (y == x) y = rand() % n;
+                    selected_neighbor.push_back(y);
+                }
+            }
+
+            for (auto y: selected_neighbor)
+            {
+                double rtt = distance(coord[x], coord[y]) + 100;
+                vivaldi_model[x].observe(y, vivaldi_model[y].coordinate(), rtt);
+            }
+        }
+    }
+
+    vector<double> err_stat;
+    for (int i = 0; i < n; i++)
+        for (int j = i + 1; j < n; j++) {
+            double est_rtt = estimate_rtt(vivaldi_model[i].coordinate(), vivaldi_model[j].coordinate());
+            double real_rtt = distance(coord[i], coord[j]) + 100;
+            //printf("est = %.2f, real = %.2f\n", est_rtt, real_rtt);
+            if (real_rtt != 0) {
+                double abs_err = fabs(est_rtt - real_rtt) / real_rtt;
+                err_stat.push_back(abs_err);
+            }
+        }
+
+    sort(err_stat.begin(), err_stat.end());
+
+    printf("err min = %.2f\n", err_stat[0]);
+    printf("err 50% = %.2f\n", err_stat[err_stat.size() / 2]);
+    printf("err 90% = %.2f\n", err_stat[int(err_stat.size() * 0.9)]);
+    printf("err max = %.2f\n", err_stat[err_stat.size() - 1]);
+}
+
 const static int K = 8;
 const static int max_iter = 100;
-coordinate center[K];
-coordinate avg[K];
 int cluster_cnt[K];
 int cluster_result[N];
 vector<int> cluster_list[K];
@@ -402,11 +452,17 @@ vector<int> cluster_list[K];
 // cluster_result[u]: u belongs to this cluster
 
 void k_means() {
+    srand(11);
+    memcle(cluster_cnt);
+    memcle(cluster_result);
+    LatLonCoordinate center[K];
+    LatLonCoordinate avg[K];
     vector<int> tmp_list;
 
     for (int i = 0; i < K; i++) {
         while (true) {
             int u = random_num(n);
+            //int u = i;
             if (find(tmp_list.begin(), tmp_list.end(), u) == tmp_list.end()) {
                 center[i] = coord[u];
                 tmp_list.push_back(u);
@@ -448,6 +504,72 @@ void k_means() {
     //for (int i = 0; i < K; i++)
     //    fprintf(stderr, "%d ", cluster_cnt[i]);
 
+    for (int i = 0; i < n; i++)
+        printf("%d ", cluster_result[i]);
+    printf("\n");
+
+    for (int i = 0; i < K; i++)
+        cluster_list[i].clear();
+
+    for (int i = 0; i < n; i++) 
+        cluster_list[cluster_result[i]].push_back(i);
+}
+
+void k_means_based_on_virtual_coordinate() {
+    srand(13);
+    memcle(cluster_cnt);
+    memcle(cluster_result);
+
+    EuclideanVector<D> center[K];
+    EuclideanVector<D> avg[K];
+    vector<int> tmp_list;
+
+    for (int i = 0; i < K; i++) {
+        while (true) {
+            int u = random_num(n);
+            if (find(tmp_list.begin(), tmp_list.end(), u) == tmp_list.end()) {
+                center[i] = vivaldi_model[u].vector();
+                tmp_list.push_back(u);
+                break;
+            }
+        }
+    }
+
+    // K means
+    for (int iter = 0; iter < max_iter; iter++) {
+
+        // find the nearest center
+        for (int i = 0; i < n; i++) {
+            double dist = 1e100;
+            int cur_cluster = 0;
+            for (int j = 0; j < K; j++)
+                if (distance(center[j], vivaldi_model[i].vector()) < dist) {
+                    dist = distance(center[j], vivaldi_model[i].vector());
+                    cur_cluster = j;
+                }
+            cluster_result[i] = cur_cluster;
+        }
+
+        // re-calculate center
+        memcle(avg);
+        memcle(cluster_cnt);
+        for (int i = 0; i < n; i++) {
+            avg[cluster_result[i]] = avg[cluster_result[i]] + vivaldi_model[i].vector();
+            cluster_cnt[cluster_result[i]]++;
+        }
+        for (int i = 0; i < K; i++) 
+            if (cluster_cnt[i] > 0) {
+                center[i] = avg[i] / cluster_cnt[i];
+            }
+    }
+
+    for (int i = 0; i < n; i++)
+        printf("%d ", cluster_result[i]);
+    printf("\n");
+
+    for (int i = 0; i < K; i++)
+        cluster_list[i].clear();
+
     for (int i = 0; i < n; i++) 
         cluster_list[cluster_result[i]].push_back(i);
 }
@@ -468,7 +590,7 @@ class k_means_cluster : public basic_algo {
 
   public: 
     const static bool specified_root = true;
-    k_means_cluster(int n, coordinate *coord, int root = 0) : G(n) {
+    k_means_cluster(int n, LatLonCoordinate *coord, int root = 0) : G(n) {
         
         // for every cluster, root builds root_deg_per_cluster connections
         for (int i = 0; i < K; i++) 
@@ -611,7 +733,7 @@ class perigee_ubc : public basic_algo {
 
   public: 
     const static bool specified_root = false;
-    perigee_ubc(int n, coordinate *coord, int root = 0) : G(n) {
+    perigee_ubc(int n, LatLonCoordinate *coord, int root = 0) : G(n) {
         // TODO: inbound has far more than 8
         for (int u = 0; u < n; u++) {
             int dg = deg;
@@ -748,7 +870,7 @@ class block_p2p : public basic_algo {
 
   public: 
     const static bool specified_root = false;
-    block_p2p(int n, coordinate *coord, int root = 0) : G(n) {
+    block_p2p(int n, LatLonCoordinate *coord, int root = 0) : G(n) {
         // the first node in every cluster's list is the entry points
         for (int i = 0; i < K; i++)
             for (int j = 0; j < K; j++)
@@ -880,7 +1002,7 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
             //double delay_time = 0; // delay_time = 10ms per link
             if (u == root) delay_time = 0;
             for (auto v : relay_list) {
-                double dist = distance(coord[u], coord[v]) + 20; // rtt : 10 + distance(u, v)
+                double dist = distance(coord[u], coord[v]) + 100; // rtt : 10 + distance(u, v)
                 // TODO: Add random delay in transmission
                 message new_msg = message(root, u, v, msg.step + 1, recv_time[u] + delay_time, recv_time[u] + dist + delay_time);
                 msg_queue.push(new_msg);
@@ -1091,9 +1213,20 @@ int main() {
     int rept = 1;
     double mal_node = 0.0;
     init();
-    simulation<perigee_ubc>(rept, 0);
-    simulation<random_flood>(rept, 0);
+
+    //simulation<perigee_ubc>(rept, 0);
+    //simulation<random_flood>(rept, 0);
+    //k_means_based_on_virtual_coordinate();
+    generate_virtual_coordinate();
+    //k_means_based_on_virtual_coordinate();
     k_means();
+    simulation<k_means_cluster<4> >(rept, mal_node);
+
+    k_means_based_on_virtual_coordinate();
+    simulation<k_means_cluster<4> >(rept, mal_node);
+
+
+
     /*
 
     for (int i = 0; i < 10; i++) {

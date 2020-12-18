@@ -11,6 +11,8 @@
 #define memcle(a) memset(a, 0, sizeof(a))
 
 using namespace std;
+const int N = 3000;
+const int TEST_ROUND = 100;
 
 //dimension
 const int REAL_COORDINATE_D = 3;
@@ -19,6 +21,9 @@ const int D = 2;
 // 3 nodes test
 void simple_3_nodes_test() {
     VivaldiModel<D> model[3];
+    for (int i = 0; i < 3; i++)
+        model[i] = VivaldiModel<D>(i);
+
     double delay[3][3] = {
         {0, 300, 400},
         {300, 0, 500},
@@ -57,28 +62,41 @@ void simple_3_nodes_test() {
 }
 
 void larger_test() {
-    const int n = 1000;
 
-    EuclideanVector<REAL_COORDINATE_D> real_coord[n];
+    double world_coord[N][2];
+    int n;
+    FILE* f = fopen("geolocation.txt", "r");
+
+    fscanf(f, "%d", &n);
+    for (int i = 0; i < n; i++) {
+        fscanf(f, "%lf%lf", &world_coord[i][0], &world_coord[i][1]);
+    }
+
+    n = 200;
+    EuclideanVector<2> real_coord[N];
+    for (int i = 0; i < n; i++) 
+        for (int j = 0; j < 2; j++)
+            real_coord[i].v[j] = world_coord[i][j];
+
+    /*
+    //EuclideanVector<REAL_COORDINATE_D> real_coord[N];
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < REAL_COORDINATE_D; j++)
             real_coord[i].v[j] = random_between_0_1() * 500;
     }
+    */
 
-    VivaldiModel<D> model[n];
+    VivaldiModel<D> model[N];
+    for (int i = 0; i < n; i++)
+        model[i] = VivaldiModel<D>(i);
 
-    for (int i = 0; i < 300 * n; i++) {
+    for (int i = 0; i < TEST_ROUND * n; i++) {
         int x = i % n; 
         //printf("%d\n", i);
         vector<int> selected_neighbor;
-        if (model[x].have_enough_neighbor) {
-
-            for (auto it = model[x].random_neighbor_set.begin();
-                    it != model[x].random_neighbor_set.end();
-                    ++it)
-                {
-                    selected_neighbor.push_back(*it);
-                }
+        if (model[x].have_enough_peer) {
+            for (auto &y: model[x].random_peer_set)
+                selected_neighbor.push_back(y);
         } else {
             for (int j = 0; j < 16; j++) {
                 int y = rand() % n;
@@ -93,8 +111,17 @@ void larger_test() {
             double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
             double relative_err = std::fabs(est_rtt - rtt) / rtt;
 
-            model[x].observe(y, model[y].coordinate(), rtt);
-            //model[y].observe(x, model[x].coordinate(), rtt);
+            Coordinate<D> cx = model[x].coordinate();
+            Coordinate<D> cy = model[y].coordinate();
+
+            //if (y == 0 && i > TEST_ROUND * 2 / 3)
+            //    rtt = 10000;
+            if (rand() % 3 == 0) {
+                rtt = 10000;
+            }
+
+            model[x].observe(y, cy, rtt);
+            //model[y].observe(x, cx, rtt);
 
             double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
             double new_err = std::fabs(new_est_rtt - rtt) / rtt;
@@ -109,7 +136,7 @@ void larger_test() {
             */
         }
 
-        if (x == 0) {
+        if (x == 10) {
             EuclideanVector<D> centroid;
             //centroid = centroid + model[x].vector();
             for (int y = 0; y < n; y++) {
@@ -117,11 +144,21 @@ void larger_test() {
                 //printf("\n");
                 centroid = centroid + model[y].vector();
             }
-            centroid = centroid / (1.0 * selected_neighbor.size() + 1.0);
+            centroid = centroid / (1.0 * n);
 
             printf("centroid = ");
             centroid.show();
-            printf("centroid magnitude = %.2f\n", centroid.magnitude());
+            printf("centroid = %.2f\n", centroid.magnitude());
+
+            EuclideanVector<D> local_centroid;
+            local_centroid = model[x].vector();
+            for (auto y: selected_neighbor) 
+                local_centroid = local_centroid + model[y].vector();
+            local_centroid = local_centroid / (1.0 * selected_neighbor.size() + 1);
+            printf("%d's local centroid = ", x);
+            local_centroid.show();
+            printf("magnitude = %.2f\n", local_centroid.magnitude());
+
         }
         //printf("%d ", x);
         //model[x].coordinate().show();
@@ -129,7 +166,7 @@ void larger_test() {
     }
 
     vector<double> err_stat;
-    for (int i = 0; i < n; i++)
+    for (int i = 5; i < n; i++)
         for (int j = i + 1; j < n; j++) {
             double est_rtt = estimate_rtt(model[i].coordinate(), model[j].coordinate());
             double real_rtt = distance(real_coord[i], real_coord[j]) + 100;
