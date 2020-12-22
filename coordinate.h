@@ -15,7 +15,7 @@ const double MIN_ERROR = 0.1;
 const double CENTROID_DRIFT = 50;
 
 const int NEAR_NEIGHBOR_NUM = 8;
-const int RANDOM_NEIGHBOR_NUM = 16;
+const int RANDOM_NEIGHBOR_NUM = 64;
 
 #define sqr(x) ((x) * (x))
 
@@ -264,6 +264,7 @@ private:
     bool enable_IN1;
     bool enable_IN2;
     bool enable_IN3;
+    bool enable_gravity;
 
     std::unordered_map<int, Coordinate<D> > peer_coord;
     std::unordered_map<int, EuclideanVector<D> > received_force;
@@ -281,7 +282,8 @@ public:
         history_counter(0),
         enable_IN1(false),
         enable_IN2(false),
-        enable_IN3(true),
+        enable_IN3(false),
+        enable_gravity(false),
         have_enough_peer(false) {
         //Initialize the coordinate as the origin 
         //Set the height = 100 ms
@@ -452,12 +454,15 @@ public:
 
         EuclideanVector<D> new_coord = local_coord.vector() + force;
 
-        // Add Gravity force
-        double new_coord_mag = new_coord.magnitude();
-        EuclideanVector<D> unit_dir = new_coord / new_coord_mag;
-        double gravity_weight = sqr(new_coord_mag / GRAVITY_RHO);
-        //double gravity_weight = new_coord_mag / 500;
-        new_coord = new_coord - unit_dir * gravity_weight;
+        if (enable_gravity){
+            // Add Gravity force
+            double new_coord_mag = new_coord.magnitude();
+            EuclideanVector<D> unit_dir = new_coord / new_coord_mag;
+            double gravity_weight = sqr(new_coord_mag / GRAVITY_RHO);
+            //double gravity_weight = new_coord_mag / 500;
+            new_coord = new_coord - unit_dir * gravity_weight;
+        }
+        
 
         //Update the local coordinate
         local_coord = Coordinate<D>(new_coord, new_height, new_error);

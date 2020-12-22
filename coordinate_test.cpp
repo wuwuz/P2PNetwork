@@ -8,6 +8,9 @@
 #include <random>
 #include <memory>
 #include "coordinate.h"
+
+#include <fstream>
+
 #define memcle(a) memset(a, 0, sizeof(a))
 
 using namespace std;
@@ -18,87 +21,64 @@ const int TEST_ROUND = 100;
 const int REAL_COORDINATE_D = 3;
 const int D = 2;
 
-// 3 nodes test
-void simple_3_nodes_test() {
-    VivaldiModel<D> model[3];
-    for (int i = 0; i < 3; i++)
-        model[i] = VivaldiModel<D>(i);
-
-    double delay[3][3] = {
-        {0, 300, 400},
-        {300, 0, 500},
-        {400, 500, 0}
-    };
-
-    // the delay between 1 and 2 --- 300 ms
-    // the delay between 1 and 3 --- 400 ms
-    // the delay between 2 and 3 --- 500 ms
-    
-    for (int i = 0; i < 100; i++) {
-        int x = i % 3;
-        for (int y = 0; y < 3; y++)
-            if (x != y) {
-                model[x].observe(y, model[y].coordinate(), delay[x][y]);
-            }
-    }
-
-    for (int i = 0; i < 3; i++) {
-        model[i].coordinate().show();
-        printf("\n");
-    }
-
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            if (i != j) {
-                printf("%.2f ", 
-                    estimate_rtt(model[i].coordinate(), model[j].coordinate())
-                );
-            } else {
-                printf("%.2f ", 0.0);
-            }
-        }
-        printf("\n");
-    }
-}
-
 void larger_test() {
 
-    double world_coord[N][2];
-    int n;
-    FILE* f = fopen("geolocation.txt", "r");
+    //double world_coord[N][2];
+    //int n;
+    //FILE* f = fopen("geolocation.txt", "r");
 
-    fscanf(f, "%d", &n);
+    //fscanf(f, "%d", &n);
+    //for (int i = 0; i < n; i++) {
+    //    fscanf(f, "%lf%lf", &world_coord[i][0], &world_coord[i][1]);
+    //}
+
+    //n = 1600;
+    //EuclideanVector<2> real_coord[N];
+    //for (int i = 0; i < n; i++) 
+    //    for (int j = 0; j < 2; j++)
+    //        real_coord[i].v[j] = world_coord[i][j];
+
+
+    //real latency dataset 490 nodes from PlanetLab
+    int n = 490;
+    double planetLab_latency[n][n];
+
+    FILE* f = fopen("PlanetLabData_1.txt", "r");
+
     for (int i = 0; i < n; i++) {
-        fscanf(f, "%lf%lf", &world_coord[i][0], &world_coord[i][1]);
+        for (int j = 0; j < n; j++) 
+            fscanf(f, "%lf", &planetLab_latency[i][j]);
     }
-
-    n = 200;
-    EuclideanVector<2> real_coord[N];
-    for (int i = 0; i < n; i++) 
-        for (int j = 0; j < 2; j++)
-            real_coord[i].v[j] = world_coord[i][j];
-
-    /*
-    //EuclideanVector<REAL_COORDINATE_D> real_coord[N];
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < REAL_COORDINATE_D; j++)
-            real_coord[i].v[j] = random_between_0_1() * 500;
-    }
-    */
 
     VivaldiModel<D> model[N];
     for (int i = 0; i < n; i++)
         model[i] = VivaldiModel<D>(i);
 
+
+    vector<double> err_median;
+    vector<double> err_mean;
+
     for (int i = 0; i < TEST_ROUND * n; i++) {
         int x = i % n; 
-        //printf("%d\n", i);
+
         vector<int> selected_neighbor;
         if (model[x].have_enough_peer) {
             for (auto &y: model[x].random_peer_set)
                 selected_neighbor.push_back(y);
         } else {
-            for (int j = 0; j < 16; j++) {
+            //random 32 neighbors
+            //for (int j = 0; j < 32; j++) {
+            //    int y = rand() % n;
+            //    while (y == x) y = rand() % n;
+            //    selected_neighbor.push_back(y);
+            //}
+            //close 32 neighbors
+            //for (int j = 0; j < 32; j++) {
+            //    int y = rand() % n;
+            //    while (planetLab_latency[y][x] > 100 or y == x) y = rand() % n;
+            //    selected_neighbor.push_back(y);
+            //}
+            for (int j = 0; j < 64; j++) {
                 int y = rand() % n;
                 while (y == x) y = rand() % n;
                 selected_neighbor.push_back(y);
@@ -107,7 +87,12 @@ void larger_test() {
 
         for (auto y: selected_neighbor)
         {
-            double rtt = distance(real_coord[x], real_coord[y]) + 100;
+            double rtt = planetLab_latency[x][y]; //distance(real_coord[x], real_coord[y]) + 100;
+
+            //random 1%/5%/10%/15% breakdown(rtt is large)
+            //if(rand() % 100 == 0)
+            //    rtt = 800;
+
             double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
             double relative_err = std::fabs(est_rtt - rtt) / rtt;
 
@@ -116,78 +101,107 @@ void larger_test() {
 
             //if (y == 0 && i > TEST_ROUND * 2 / 3)
             //    rtt = 10000;
-            if (rand() % 3 == 0) {
-                rtt = 10000;
-            }
+            //if (rand() % 3 == 0) {
+            //    rtt = 10000;
+            //}
 
             model[x].observe(y, cy, rtt);
-            //model[y].observe(x, cx, rtt);
 
-            double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
-            double new_err = std::fabs(new_est_rtt - rtt) / rtt;
 
+        }
+        //every round 
+        if (i != 0 && i%n == 0) {
             
-            /*
-            if (new_err > relative_err * 1.2) {
-                printf("Increasing error: i = %d, x = %d, y = %d\n", i, x, y);
-                printf("rtt = %.2f, old est = %.2f, new est = %.2f\n", rtt, est_rtt, new_est_rtt);
-                printf("old = %.2f, new = %.2f\n", relative_err, new_err);
-            }
-            */
-        }
+            //EuclideanVector<D> centroid;
 
-        if (x == 10) {
-            EuclideanVector<D> centroid;
             //centroid = centroid + model[x].vector();
-            for (int y = 0; y < n; y++) {
-                //model[y].vector().show();
-                //printf("\n");
-                centroid = centroid + model[y].vector();
-            }
-            centroid = centroid / (1.0 * n);
+            //for (int y = 0; y < n; y++) {
+            //    model[y].vector().show();
+            //    printf("\n");
+            //    centroid = centroid + model[y].vector();
+            //}
+            //centroid = centroid / (1.0 * n);
 
-            printf("centroid = ");
-            centroid.show();
-            printf("centroid = %.2f\n", centroid.magnitude());
+            //printf("centroid = ");
+            //centroid.show();
+            //printf("\n");
+            //printf("centroid = %.2f\n", centroid.magnitude());
 
-            EuclideanVector<D> local_centroid;
-            local_centroid = model[x].vector();
-            for (auto y: selected_neighbor) 
-                local_centroid = local_centroid + model[y].vector();
-            local_centroid = local_centroid / (1.0 * selected_neighbor.size() + 1);
-            printf("%d's local centroid = ", x);
-            local_centroid.show();
-            printf("magnitude = %.2f\n", local_centroid.magnitude());
+            //EuclideanVector<D> local_centroid;
+            //local_centroid = model[x].vector();
+
+            //for (auto y: selected_neighbor) 
+            //    local_centroid = local_centroid + model[y].vector();
+
+            //local_centroid = local_centroid / (1.0 * selected_neighbor.size() + 1);
+            
+            //printf("%d local centroid = ", x);
+            
+            //local_centroid.show();
+            //printf("magnitude = %.2f\n", local_centroid.magnitude());
+            
+
+            vector<double> err_stat;
+            for (int i = 0; i < n; i++)
+                for (int j = i + 1; j < n; j++) {
+                    double est_rtt = estimate_rtt(model[i].coordinate(), model[j].coordinate());
+                    double real_rtt = planetLab_latency[i][j]; //distance(real_coord[i], real_coord[j]) + 100;
+                    //printf("est = %.2f, real = %.2f\n", est_rtt, real_rtt);
+                    if (real_rtt != 0) {
+                        double abs_err = fabs(est_rtt - real_rtt); /// real_rtt;
+                        err_stat.push_back(abs_err);
+                    }
+                }
+
+            sort(err_stat.begin(), err_stat.end());
+
+            printf("round %d", i/n);
+            //printf("err min = %.2f\n", err_stat[0]);
+            printf("err 50% = %.2f\n", err_stat[err_stat.size() / 2]);
+            err_median.push_back(err_stat[err_stat.size() / 2]);
+
+            double mean_ = 0.0;
+            for(int i =0; i < err_stat.size(); i++)
+                mean_ += err_stat[i];
+            printf("err mean = %.2f\n", mean_/err_stat.size());
+            err_mean.push_back(mean_/err_stat.size());
+            //printf("err 90% = %.2f\n", err_stat[int(err_stat.size() * 0.9)]);
+            //printf("err max = %.2f\n", err_stat[err_stat.size() - 1]);
 
         }
-        //printf("%d ", x);
-        //model[x].coordinate().show();
-        //printf("\n");
+
     }
 
-    vector<double> err_stat;
-    for (int i = 5; i < n; i++)
-        for (int j = i + 1; j < n; j++) {
-            double est_rtt = estimate_rtt(model[i].coordinate(), model[j].coordinate());
-            double real_rtt = distance(real_coord[i], real_coord[j]) + 100;
-            //printf("est = %.2f, real = %.2f\n", est_rtt, real_rtt);
-            if (real_rtt != 0) {
-                double abs_err = fabs(est_rtt - real_rtt) / real_rtt;
-                err_stat.push_back(abs_err);
-            }
-        }
+    ofstream outf1; 
 
-    sort(err_stat.begin(), err_stat.end());
+    ofstream outf2;
 
-    printf("err min = %.2f\n", err_stat[0]);
-    printf("err 50% = %.2f\n", err_stat[err_stat.size() / 2]);
-    printf("err 90% = %.2f\n", err_stat[int(err_stat.size() * 0.9)]);
-    printf("err max = %.2f\n", err_stat[err_stat.size() - 1]);
+    outf1.open("err_median.txt");
+
+    outf2.open("err_mean.txt");
+
+    for (int i =0; i < err_median.size(); i++)
+        outf1<<err_median[i]<<endl;
+
+    for (int i =0; i < err_mean.size(); i++)
+        outf2<<err_mean[i]<<endl;
+
+    outf1.close();
+    outf2.close();
+
+    //coordinate 
+    ofstream outf; 
+    outf.open("coordinate.txt");
+    for (int i = 0; i < n; i++)
+        outf<<model[i].coordinate().vector().v[0]<<","<<model[i].coordinate().vector().v[1]<<","<<model[i].coordinate().height()<<endl;
+    outf.close();
+    
 }
 
 
 int main() {
-    //simple_3_nodes_test();
+
     larger_test();
+
     return 0;
 }
