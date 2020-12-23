@@ -89,9 +89,14 @@ void larger_test() {
         {
             double rtt = planetLab_latency[x][y]; //distance(real_coord[x], real_coord[y]) + 100;
 
-            //random 1%/5%/10%/15% breakdown(rtt is large)
-            //if(rand() % 100 == 0)
-            //    rtt = 800;
+            //stability rtt = 95%-105%, 80%-120%, 50%-150%
+            //rtt = rtt * (rand()%11 + 95)/100.0;
+            //rtt = rtt * (rand()%41 + 80)/100.0;
+            //rtt = rtt * (rand()%101 + 50)/100.0;
+
+            //breakdown rtt is large(1000ms) 10% 20% 30%
+            if (rand() % 100 < 30)
+                rtt = 1000;
 
             double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
             double relative_err = std::fabs(est_rtt - rtt) / rtt;

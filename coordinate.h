@@ -12,7 +12,7 @@ const double ADDPATIVE_TIMESTEP = 0.25;
 const double FLOAT_ZERO = 1e-6;
 const double GRAVITY_RHO = 500;
 const double MIN_ERROR = 0.1;
-const double CENTROID_DRIFT = 50;
+const double CENTROID_DRIFT = 25;
 
 const int NEAR_NEIGHBOR_NUM = 8;
 const int RANDOM_NEIGHBOR_NUM = 64;
@@ -280,9 +280,9 @@ public:
         history_force_stat(100),
         self_id(id),
         history_counter(0),
-        enable_IN1(false),
-        enable_IN2(false),
-        enable_IN3(false),
+        enable_IN1(true),
+        enable_IN2(true),
+        enable_IN3(true),
         enable_gravity(false),
         have_enough_peer(false) {
         //Initialize the coordinate as the origin 
@@ -336,9 +336,9 @@ public:
             it -> second.observe(rtt);
             double med = it -> second.get_median();
             rtt = med;
-            if (rtt == 10000) {
-                //printf("self_id = %d, remote_id = %d", self_id, remote_id);
-            }
+            //if (rtt == 10000) {
+            //    //printf("self_id = %d, remote_id = %d", self_id, remote_id);
+            //}
         }
 
         // Sample weight balances local and remote error (1)
@@ -364,12 +364,13 @@ public:
         double weighted_error = ERROR_LIMIT * weight;
         double new_error = relative_error * weighted_error
             + local_coord.error() * (1.0 - weighted_error);
+
         if (new_error < MIN_ERROR)
             new_error = MIN_ERROR;
 
-        if (new_error > local_coord.error()) {
-            //printf("DRIFTING\n");
-        }
+        //if (new_error > local_coord.error()) {
+        //    //printf("DRIFTING\n");
+        //}
 
         // Calculate the adaptive timestep (part of 4)
         //
@@ -387,9 +388,9 @@ public:
         //     too far, pull together
         double weighted_force_magnitude = adaptive_timestep * (rtt - predict_rtt); 
 
-        if (rtt == 10000) {
+        //if (rtt == 10000) {
             //printf("self_id = %d, w = %.2f\n", self_id, weighted_force_magnitude);
-        }
+        //}
 
         // Unit vector (part of 4)
         //
@@ -404,7 +405,7 @@ public:
         } else {
             // calculate the unit vector (remote ---> self)
             //unit_v = v / v.magnitude();
-            unit_v = v / predict_rtt;
+            unit_v = v / predict_rtt;   //bug? v does not contain the height but predict_rtt contains the height
         }
         // Calculate the new height of the local node:
         //
