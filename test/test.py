@@ -23,41 +23,6 @@ for k in data:
     y_.append(float(k.replace("\n", "")))
 plt.plot(x_, y_, linewidth=2,label="static")
 
-with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_newton_breakdown_10.txt", "r") as f:
-    data = f.readlines()
-x_ = []
-y_ = []
-i = 1
-for k in data:
-    print (k)
-    x_.append(i)
-    i+=1
-    y_.append(float(k.replace("\n", "")))
-plt.plot(x_, y_, linewidth=2,label="10% breakdown")
-
-with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_newton_breakdown_20.txt", "r") as f:
-    data = f.readlines()
-x_ = []
-y_ = []
-i = 1
-for k in data:
-    print (k)
-    x_.append(i)
-    i+=1
-    y_.append(float(k.replace("\n", "")))
-plt.plot(x_, y_, linewidth=2,label="20% breakdown")
-
-with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_newton_breakdown_30.txt", "r") as f:
-    data = f.readlines()
-x_ = []
-y_ = []
-i = 1
-for k in data:
-    print (k)
-    x_.append(i)
-    i+=1
-    y_.append(float(k.replace("\n", "")))
-plt.plot(x_, y_, linewidth=2,label="30% breakdown")
 
 """
 with open("/Users/zengly/Downloads/P2PNetwork/test/coordinate.txt", "r") as f:
@@ -80,7 +45,7 @@ plt.xlabel("Round")
 plt.ylabel("Prediction Error(ms)")
 plt.legend(loc='upper right', fancybox=True,shadow=True,)
 
-plt.savefig('/Users/zengly/Downloads/P2PNetwork/test/newton_planet_100_64_breakdown.pdf',bbox_inches = 'tight')
+plt.savefig('/Users/zengly/Downloads/P2PNetwork/test/newton_planet_100_64_10attack_randomCoo.pdf',bbox_inches = 'tight')
 plt.show()
 
 

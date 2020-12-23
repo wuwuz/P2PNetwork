@@ -58,6 +58,10 @@ void larger_test() {
     vector<double> err_median;
     vector<double> err_mean;
 
+    //attack 10%20%30% random coordinate
+    vector<int> malicious_nodes;
+
+
     for (int i = 0; i < TEST_ROUND * n; i++) {
         int x = i % n; 
 
@@ -95,8 +99,8 @@ void larger_test() {
             //rtt = rtt * (rand()%101 + 50)/100.0;
 
             //breakdown rtt is large(1000ms) 10% 20% 30%
-            if (rand() % 100 < 30)
-                rtt = 1000;
+            //if (rand() % 100 < 30)
+            //    rtt = 1000;
 
             double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
             double relative_err = std::fabs(est_rtt - rtt) / rtt;

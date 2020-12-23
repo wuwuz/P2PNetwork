@@ -61,7 +61,12 @@ lower (median)error than vivaldi
 11. test rtt stability(static/95%-105%/80%-120%, 10%/20%/30% breakdown)
 output:
 newton_planet_100_64_rtt.pdf
+newton_planet_100_64_breakdown.pdf
+still performs well
 
 ---------
 Attack
+12. random coordinate(10%/20/30%)
+output:
+
 
