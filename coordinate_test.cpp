@@ -60,6 +60,17 @@ void larger_test() {
 
     //attack 10%20%30% random coordinate
     vector<int> malicious_nodes;
+    while(malicious_nodes.size() <= 0.3*n){
+        int id_ = rand() % n;
+        vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), id_);
+        while (iter != malicious_nodes.end())
+        {
+            id_ = rand() % n;
+            iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), id_);
+        
+        }
+        malicious_nodes.push_back(id_);
+    }
 
 
     for (int i = 0; i < TEST_ROUND * n; i++) {
@@ -102,11 +113,23 @@ void larger_test() {
             //if (rand() % 100 < 30)
             //    rtt = 1000;
 
-            double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
-            double relative_err = std::fabs(est_rtt - rtt) / rtt;
-
-            Coordinate<D> cx = model[x].coordinate();
             Coordinate<D> cy = model[y].coordinate();
+
+            //disorder attack: random coordinate, low error=0.01, rtt delay[100...1000]
+            vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
+            if (iter != malicious_nodes.end() and i > 20 * n){
+                rtt = planetLab_latency[x][y] + (rand()%901+100);
+                EuclideanVector<D> yy;
+                yy.v[0] = rand()%601 + (-400);
+                yy.v[1] = rand()%401 + (-200);
+                cy = Coordinate<D>(yy, 0, 0.01);
+            }
+
+            //double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
+           // double relative_err = std::fabs(est_rtt - rtt) / rtt;
+
+            //Coordinate<D> cx = model[x].coordinate();
+            //Coordinate<D> cy = model[y].coordinate();
 
             //if (y == 0 && i > TEST_ROUND * 2 / 3)
             //    rtt = 10000;

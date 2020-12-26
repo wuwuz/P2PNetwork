@@ -66,7 +66,22 @@ still performs well
 
 ---------
 Attack
-12. random coordinate(10%/20/30%)
+12. disorder attack: random coordinate, low error=0.01, rtt delay[100...1000]
 output:
+disorder_planet_100_64.pdf
+newton performs better
 
+13. disorder attack(after convergence 20)
+output:
+disorder_after_planet_100_64.pdf
+newton performs better
 
+14. deflation attack(origin coordinate)
+output:
+deflation_planet_100_64.pdf
+newton performs well
+
+15. inflation attack(large coordinate)
+output:
+inflation_planet_100_64.pdf
+slower convergence, but still performs ok

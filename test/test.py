@@ -21,7 +21,43 @@ for k in data:
     x_.append(i)
     i+=1
     y_.append(float(k.replace("\n", "")))
-plt.plot(x_, y_, linewidth=2,label="static")
+plt.plot(x_, y_, linewidth=2,label="newton(static)")
+
+with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_inflation_10.txt", "r") as f:
+    data = f.readlines()
+x_ = []
+y_ = []
+i = 1
+for k in data:
+    print (k)
+    x_.append(i)
+    i+=1
+    y_.append(float(k.replace("\n", "")))
+plt.plot(x_, y_, linewidth=2,label="newton(10% malicious)")
+
+with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_inflation_20.txt", "r") as f:
+    data = f.readlines()
+x_ = []
+y_ = []
+i = 1
+for k in data:
+    print (k)
+    x_.append(i)
+    i+=1
+    y_.append(float(k.replace("\n", "")))
+plt.plot(x_, y_, linewidth=2,label="newton(20% malicious)")
+
+with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_inflation_30.txt", "r") as f:
+    data = f.readlines()
+x_ = []
+y_ = []
+i = 1
+for k in data:
+    print (k)
+    x_.append(i)
+    i+=1
+    y_.append(float(k.replace("\n", "")))
+plt.plot(x_, y_, linewidth=2,label="newton(30% malicious)")
 
 
 """
@@ -40,12 +76,13 @@ plt.xlabel("X")
 plt.ylabel("Y")
 """
 
-
+plt.title("Inflation Attack")
 plt.xlabel("Round")
 plt.ylabel("Prediction Error(ms)")
+#plt.yscale("log")
 plt.legend(loc='upper right', fancybox=True,shadow=True,)
 
-plt.savefig('/Users/zengly/Downloads/P2PNetwork/test/newton_planet_100_64_10attack_randomCoo.pdf',bbox_inches = 'tight')
+plt.savefig('/Users/zengly/Downloads/P2PNetwork/test/inflation_planet_100_64.pdf',bbox_inches = 'tight')
 plt.show()
 
 
