@@ -69,13 +69,13 @@ Attack
 12. disorder attack: random coordinate, low error=0.01, rtt delay[100...1000]
 output:
 disorder_planet_100_64.pdf
-disorder_after_planet_100_64.pdf(after 20 rounds)
+disorder_after_planet_100_64.pdf(attack after 20 rounds)
 newton performs better
 
 13. deflation attack(malicious_cor=(0,0))
 output:
 deflation_planet_100_64.pdf
-deflation_after_planet_100_64.pdf(after 20 rounds)
+deflation_after_planet_100_64.pdf(attack after 20 rounds)
 newton performs well
 
 14. inflation attack
@@ -84,3 +84,6 @@ inflation_400_planet_100_64.pdf(malicious_cor=(400,400))
 obvious higher error
 inflation_800_planet_100_64.pdf(malicious_cor=(800,800))
 newton can not converge with 10% malicious nodes(why?)
+inflation_800_after_planet_100_64(attack after 20 rounds)
+inflation_400_after_planet_100_64(attack after 20 rounds)
+newton performs well
