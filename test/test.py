@@ -11,7 +11,7 @@ plt.figure(figsize=(8,4))
 #err_median_planet.txt
 #err_median_newton_shift25.txt
 
-with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_newton_shift25.txt", "r") as f:
+with open("/Users/zengly/Downloads/P2PNetwork/test/outputs/err_median_newton_shift25.txt", "r") as f:
     data = f.readlines()
 x_ = []
 y_ = []
@@ -23,7 +23,7 @@ for k in data:
     y_.append(float(k.replace("\n", "")))
 plt.plot(x_, y_, linewidth=2,label="newton(static)")
 
-with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_inflation_10.txt", "r") as f:
+with open("/Users/zengly/Downloads/P2PNetwork/test/outputs/err_median_inflation_10_800_after.txt", "r") as f:
     data = f.readlines()
 x_ = []
 y_ = []
@@ -35,7 +35,7 @@ for k in data:
     y_.append(float(k.replace("\n", "")))
 plt.plot(x_, y_, linewidth=2,label="newton(10% malicious)")
 
-with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_inflation_20.txt", "r") as f:
+with open("/Users/zengly/Downloads/P2PNetwork/test/outputs/err_median_inflation_20_800_after.txt", "r") as f:
     data = f.readlines()
 x_ = []
 y_ = []
@@ -47,7 +47,7 @@ for k in data:
     y_.append(float(k.replace("\n", "")))
 plt.plot(x_, y_, linewidth=2,label="newton(20% malicious)")
 
-with open("/Users/zengly/Downloads/P2PNetwork/test/err_median_inflation_30.txt", "r") as f:
+with open("/Users/zengly/Downloads/P2PNetwork/test/outputs/err_median_inflation_30_800_after.txt", "r") as f:
     data = f.readlines()
 x_ = []
 y_ = []
@@ -76,13 +76,13 @@ plt.xlabel("X")
 plt.ylabel("Y")
 """
 
-plt.title("Inflation Attack")
+plt.title("Inflation Attack(malicious_cor=(800,800), after convergence)")
 plt.xlabel("Round")
 plt.ylabel("Prediction Error(ms)")
 #plt.yscale("log")
 plt.legend(loc='upper right', fancybox=True,shadow=True,)
 
-plt.savefig('/Users/zengly/Downloads/P2PNetwork/test/inflation_planet_100_64.pdf',bbox_inches = 'tight')
+plt.savefig('/Users/zengly/Downloads/P2PNetwork/test/graphs/inflation_800_after_planet_100_64.pdf',bbox_inches = 'tight')
 plt.show()
 
 
