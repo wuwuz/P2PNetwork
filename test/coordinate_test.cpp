@@ -57,6 +57,7 @@ void larger_test() {
 
     vector<double> err_median;
     vector<double> err_mean;
+    vector<double> black_acc_median;
 
     //attack 10%20%30% random coordinate
     vector<int> malicious_nodes;
@@ -137,7 +138,7 @@ void larger_test() {
 
             //inflation attack: large coordinate, low error=0.01, 
             vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
-            if (iter != malicious_nodes.end() and i > 20 * n){ //and i > 20 * n
+            if (iter != malicious_nodes.end()){ //and i > 20 * n
                 rtt = planetLab_latency[x][y];
                 EuclideanVector<D> yy;
                 yy.v[0] = 800;
@@ -194,10 +195,10 @@ void larger_test() {
             
 
             vector<double> err_stat;
-            for (int i = 0; i < n; i++)
-                for (int j = i + 1; j < n; j++) {
-                    double est_rtt = estimate_rtt(model[i].coordinate(), model[j].coordinate());
-                    double real_rtt = planetLab_latency[i][j]; //distance(real_coord[i], real_coord[j]) + 100;
+            for (int w = 0; w < n; w++)
+                for (int z = w + 1; z < n; z++) {
+                    double est_rtt = estimate_rtt(model[w].coordinate(), model[z].coordinate());
+                    double real_rtt = planetLab_latency[w][z]; //distance(real_coord[i], real_coord[j]) + 100;
                     //printf("est = %.2f, real = %.2f\n", est_rtt, real_rtt);
                     if (real_rtt != 0) {
                         double abs_err = fabs(est_rtt - real_rtt); /// real_rtt;
@@ -208,9 +209,35 @@ void larger_test() {
             sort(err_stat.begin(), err_stat.end());
 
             printf("round %d", i/n);
-            //printf("err min = %.2f\n", err_stat[0]);
             printf("err 50% = %.2f\n", err_stat[err_stat.size() / 2]);
             err_median.push_back(err_stat[err_stat.size() / 2]);
+                
+            //black list accuracy rate
+            int num  = 0;
+            vector<double> black_acc;
+            vector<int>::iterator iter;
+            std::unordered_set<int> bl;
+            for (int w = 0; w < n; w++){
+                bl = model[w].black_();
+                num = 0;
+                for(int z : bl){
+                    iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), z);
+                    if(iter != malicious_nodes.end())
+                        num += 1;
+                }
+                if (bl.size() == 0){
+                    black_acc.push_back(-1);
+                }
+                else{
+                    black_acc.push_back(num*1.0/bl.size());
+                }
+                
+            }
+            sort(black_acc.begin(), black_acc.end());
+
+            printf("round %d", i/n);
+            printf("black_acc 50% = %.2f\n", black_acc[black_acc.size() / 2]);
+            black_acc_median.push_back(black_acc[black_acc.size() / 2]);
 
             //double mean_ = 0.0;
             //for(int i =0; i < err_stat.size(); i++)
@@ -228,7 +255,7 @@ void larger_test() {
 
     //ofstream outf2;
 
-    outf1.open("/Users/zengly/Downloads/P2PNetwork/test/outputs/err_median_inflation_30_800_after.txt");
+    outf1.open("/Users/zengly/Downloads/P2PNetwork/test/outputs/err_median_inflation_30_800.txt");
 
     //outf2.open("/outputs/err_mean.txt");
 
@@ -247,6 +274,23 @@ void larger_test() {
     //for (int i = 0; i < n; i++)
     //    outf<<model[i].coordinate().vector().v[0]<<","<<model[i].coordinate().vector().v[1]<<","<<model[i].coordinate().height()<<endl;
     //outf.close();
+
+    ofstream outf2; 
+
+    //ofstream outf2;
+
+    outf2.open("/Users/zengly/Downloads/P2PNetwork/test/outputs/black_acc_median_inflation_30_800.txt");
+
+    //outf2.open("/outputs/err_mean.txt");
+
+    for (int i =0; i < black_acc_median.size(); i++)
+        outf2<<black_acc_median[i]<<endl;
+
+    //for (int i =0; i < err_mean.size(); i++)
+    //    outf2<<err_mean[i]<<endl;
+
+    outf2.close();
+
     
 }
 

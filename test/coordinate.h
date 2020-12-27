@@ -290,6 +290,10 @@ public:
         //Set the absolute error = 2
     }
 
+    std::unordered_set<int> black_(){
+        return blacklist;
+    }
+
     Coordinate<D> coordinate() {
         return local_coord;
     }
