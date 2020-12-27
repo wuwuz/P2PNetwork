@@ -16,6 +16,7 @@ const double pi = acos(-1);
 const double R = 6371000; // radius of the earth
 const double inf = 1e8;
 const int MAX_DEPTH = 20;
+const double FIXED_DELAY = 200;
 //typedef unsigned int int;
 int n;
 mt19937 rd(1000);
@@ -393,6 +394,14 @@ const static int D = 3;
 const static int COORDINATE_UPDATE_ROUND = 100;
 VivaldiModel<D> vivaldi_model[N];
 
+void generate_random_virtual_coordinate() {
+    for (int i = 0; i < n; i++) {
+        vivaldi_model[i] = VivaldiModel<D>(i);
+        double tmp[2] = {random_between_0_1() * 500, random_between_0_1() * 500};
+        vivaldi_model[i].local_coord = Coordinate<D>(tmp, 0, 0.1);
+    }
+}
+
 void generate_virtual_coordinate() {
     // init
     for (int i = 0; i < n; i++)
@@ -415,6 +424,8 @@ void generate_virtual_coordinate() {
             for (auto y: selected_neighbor)
             {
                 double rtt = distance(coord[x], coord[y]) + 100;
+                if (rand() % 3 == 0)
+                    rtt = 10000;
                 vivaldi_model[x].observe(y, vivaldi_model[y].coordinate(), rtt);
             }
         }
@@ -504,9 +515,9 @@ void k_means() {
     //for (int i = 0; i < K; i++)
     //    fprintf(stderr, "%d ", cluster_cnt[i]);
 
-    for (int i = 0; i < n; i++)
-        printf("%d ", cluster_result[i]);
-    printf("\n");
+    //for (int i = 0; i < n; i++)
+    //    printf("%d ", cluster_result[i]);
+    //printf("\n");
 
     for (int i = 0; i < K; i++)
         cluster_list[i].clear();
@@ -563,9 +574,9 @@ void k_means_based_on_virtual_coordinate() {
             }
     }
 
-    for (int i = 0; i < n; i++)
-        printf("%d ", cluster_result[i]);
-    printf("\n");
+    //for (int i = 0; i < n; i++)
+    //    printf("%d ", cluster_result[i]);
+    //printf("\n");
 
     for (int i = 0; i < K; i++)
         cluster_list[i].clear();
@@ -1002,7 +1013,7 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
             //double delay_time = 0; // delay_time = 10ms per link
             if (u == root) delay_time = 0;
             for (auto v : relay_list) {
-                double dist = distance(coord[u], coord[v]) + 100; // rtt : 10 + distance(u, v)
+                double dist = distance(coord[u], coord[v]) + FIXED_DELAY; // rtt : 10 + distance(u, v)
                 // TODO: Add random delay in transmission
                 message new_msg = message(root, u, v, msg.step + 1, recv_time[u] + delay_time, recv_time[u] + dist + delay_time);
                 msg_queue.push(new_msg);
@@ -1106,22 +1117,23 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
 
         // 2) simulate the message at source i
         //int normal_node = n - mal_node * n;
+        int test_node = max(n / 100, 10);
 
         shared_ptr<algo_T> algo(new algo_T(n, coord, 0)); // initialize an algo instance, regardless of the root
-        for (int root = 0; root < n; root++) {
-            if (mal_flag[root] == false) {
-                //fprintf(stderr, "%d", i);
-                test_time++;
-                auto res = single_root_simulation<algo_T>(root, 1, mal_node, algo);
-                result.dup_rate += res.dup_rate;
-                for (size_t i = 0; i < result.latency.size(); i++) {
-                    result.latency[i] += res.latency[i];
-                    //if (i == 19 && result.latency[i] > 0)
-                    //    fprintf(stderr, "root %d latency sum at %.2f %.2f\n", root, 0.05 * i, result.latency[i]);
-                }
-                for (int i = 0; i < MAX_DEPTH; i++)
-                    result.depth_cdf[i] += res.depth_cdf[i];
+        //for (int root = 0; root < n; root++) {
+        for (; test_node > 0; test_node--) {
+            int root = rand() % n;
+            while (mal_flag[root] == true) root = rand() % n;
+            test_time++;
+            auto res = single_root_simulation<algo_T>(root, 1, mal_node, algo);
+            result.dup_rate += res.dup_rate;
+            for (size_t i = 0; i < result.latency.size(); i++) {
+                result.latency[i] += res.latency[i];
+                //if (i == 19 && result.latency[i] > 0)
+                //    fprintf(stderr, "root %d latency sum at %.2f %.2f\n", root, 0.05 * i, result.latency[i]);
             }
+            for (int i = 0; i < MAX_DEPTH; i++)
+                result.depth_cdf[i] += res.depth_cdf[i];
         }
     }
 
@@ -1190,7 +1202,7 @@ void init() {
         fscanf(f, "%lf%lf", &coord[i].lat, &coord[i].lon);
     }
 
-    n = 200;
+    n = 5000;
     
     for (int i = 0; i < n; i++) {
         vector<pair<double, int> > rk;
@@ -1211,18 +1223,26 @@ void init() {
 
 int main() {
     int rept = 1;
-    double mal_node = 0.0;
+    double mal_node = 0.1;
     init();
 
     //simulation<perigee_ubc>(rept, 0);
-    //simulation<random_flood>(rept, 0);
+    simulation<random_flood>(rept, 0);
     //k_means_based_on_virtual_coordinate();
-    generate_virtual_coordinate();
+    //generate_virtual_coordinate();
     //k_means_based_on_virtual_coordinate();
-    k_means();
+    //k_means();
+    //simulation<k_means_cluster<2> >(rept, mal_node);
+
+    generate_random_virtual_coordinate();
+    k_means_based_on_virtual_coordinate();
     simulation<k_means_cluster<4> >(rept, mal_node);
 
+    generate_virtual_coordinate();
     k_means_based_on_virtual_coordinate();
+    simulation<k_means_cluster<4> >(rept, mal_node);
+
+    k_means();
     simulation<k_means_cluster<4> >(rept, mal_node);
 
 

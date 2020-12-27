@@ -248,16 +248,15 @@ public:
         std::vector<double> tmp;
         for (auto t: q) tmp.push_back(norm(t));
         std::sort(tmp.begin(), tmp.end());
-        printf("{");
-        for (auto t: tmp) printf("%.2f, ", t);
-        printf("}\n");
+        //printf("{");
+        //for (auto t: tmp) printf("%.2f, ", t);
+        //printf("}\n");
     }
 };
 
 template<int D = 2> 
 class VivaldiModel {
 private: 
-    Coordinate<D> local_coord;
     HistoryStat<EuclideanVector<D> > history_force_stat;
     int self_id;
     int history_counter;
@@ -271,6 +270,7 @@ private:
     std::unordered_set<int> blacklist;
 
 public:
+    Coordinate<D> local_coord;
     std::unordered_set<int> random_peer_set;
     bool have_enough_peer;
 
@@ -335,7 +335,9 @@ public:
             double med = it -> second.get_median();
             rtt = med;
             if (rtt == 10000) {
-                //printf("self_id = %d, remote_id = %d", self_id, remote_id);
+                //it -> second.show();
+                //printf("\n");
+                //printf("self_id = %d, remote_id = %d\n", self_id, remote_id);
             }
         }
 
@@ -384,6 +386,8 @@ public:
         // if rtt < predict_rtt
         //     too far, pull together
         double weighted_force_magnitude = adaptive_timestep * (rtt - predict_rtt); 
+        if (weighted_force_magnitude > 100)
+            return;
 
         if (rtt == 10000) {
             //printf("self_id = %d, w = %.2f\n", self_id, weighted_force_magnitude);
@@ -432,7 +436,9 @@ public:
 
         if (enable_IN3 &&
             history_counter > 20 && 
-            std::fabs(weighted_force_magnitude) > history_median + 5 * median_dev) { //history_force_stat.show();
+            std::fabs(weighted_force_magnitude) > 20 &&
+            std::fabs(weighted_force_magnitude) > history_median + 8 * median_dev) { 
+            //history_force_stat.show();
             //printf("w = %.2f Violates IN3: decelaration rule, remote_id = %d\n", weighted_force_magnitude, remote_id);
             return;
         } else {
