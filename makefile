@@ -2,7 +2,7 @@ CFLAGS = -pg -g -Wall -std=c++11 -mpopcnt -march=native
 
 all: sim coordinate_test
 
-sim: sim.cpp
+sim: coordinate.h sim.cpp 
 	g++ $(CFLAGS) -o sim sim.cpp 
 
 coordinate_test: coordinate_test.cpp coordinate.h
