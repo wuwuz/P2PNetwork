@@ -60,7 +60,7 @@ void larger_test() {
 
     //attack 10%20%30% random coordinate
     vector<int> malicious_nodes;
-    while(malicious_nodes.size() <= 0.3*n){
+    while(malicious_nodes.size() <= 0.1*n){
         int id_ = rand() % n;
         vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), id_);
         while (iter != malicious_nodes.end())
@@ -116,12 +116,32 @@ void larger_test() {
             Coordinate<D> cy = model[y].coordinate();
 
             //disorder attack: random coordinate, low error=0.01, rtt delay[100...1000]
+            //vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
+            //if (iter != malicious_nodes.end() ){ //and i > 20 * n
+            //    rtt = planetLab_latency[x][y] + (rand()%901+100);
+            //    EuclideanVector<D> yy;
+            //    yy.v[0] = rand()%601 + (-400);
+            //    yy.v[1] = rand()%401 + (-200);
+            //    cy = Coordinate<D>(yy, 0, 0.01);
+            //}
+
+            //deflation attack: coordinate(0,0), low error=0.01, 
+            //vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
+            //if (iter != malicious_nodes.end() ){ //and i > 20 * n
+            //    rtt = planetLab_latency[x][y];
+            //    EuclideanVector<D> yy;
+            //    yy.v[0] = 0.0;
+            //    yy.v[1] = 0.0;
+            //    cy = Coordinate<D>(yy, 0, 0.01);
+            //}
+
+            //inflation attack: large coordinate, low error=0.01, 
             vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
-            if (iter != malicious_nodes.end() and i > 20 * n){
-                rtt = planetLab_latency[x][y] + (rand()%901+100);
+            if (iter != malicious_nodes.end() ){ //and i > 20 * n
+                rtt = planetLab_latency[x][y];
                 EuclideanVector<D> yy;
-                yy.v[0] = rand()%601 + (-400);
-                yy.v[1] = rand()%401 + (-200);
+                yy.v[0] = 400;
+                yy.v[1] = 400;
                 cy = Coordinate<D>(yy, 0, 0.01);
             }
 

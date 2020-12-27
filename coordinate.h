@@ -437,6 +437,7 @@ public:
             history_counter > 20 && 
             std::fabs(weighted_force_magnitude) > history_median + 5 * median_dev) { //history_force_stat.show();
             //printf("w = %.2f Violates IN3: decelaration rule, remote_id = %d\n", weighted_force_magnitude, remote_id);
+            printf("Violates IN3\n");
             return;
         } else {
             if (rtt == 10000) {
@@ -494,7 +495,8 @@ public:
                 }
             }
 
-            printf("Violates In1, centroid mag = %.2f, self_id = %d, mal id = %d\n", centroid.magnitude(), self_id, malicious_id);
+            printf("Violates In1\n");
+            //printf("Violates In1, centroid mag = %.2f, self_id = %d, mal id = %d\n", centroid.magnitude(), self_id, malicious_id);
             EuclideanVector<D> new_coord = local_coord.vector() - force;
             double new_height = local_coord.height();
             double new_err = local_coord.error();
