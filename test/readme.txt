@@ -83,7 +83,7 @@ output:
 inflation_400_planet_100_64.pdf(malicious_cor=(400,400))
 obvious higher error
 inflation_800_planet_100_64.pdf(malicious_cor=(800,800))
-newton can not converge with 10% malicious nodes(why?)
+higher initial erros but performs well
 inflation_800_after_planet_100_64(attack after 20 rounds)
 inflation_400_after_planet_100_64(attack after 20 rounds)
 newton performs well

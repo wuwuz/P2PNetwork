@@ -275,21 +275,21 @@ void larger_test() {
     //    outf<<model[i].coordinate().vector().v[0]<<","<<model[i].coordinate().vector().v[1]<<","<<model[i].coordinate().height()<<endl;
     //outf.close();
 
-    ofstream outf2; 
+    //ofstream outf2; 
 
     //ofstream outf2;
 
-    outf2.open("/Users/zengly/Downloads/P2PNetwork/test/outputs/black_acc_median_inflation_30_800.txt");
+    //outf2.open("/Users/zengly/Downloads/P2PNetwork/test/outputs/black_acc_median_inflation_30_800.txt");
 
     //outf2.open("/outputs/err_mean.txt");
 
-    for (int i =0; i < black_acc_median.size(); i++)
-        outf2<<black_acc_median[i]<<endl;
+    //for (int i =0; i < black_acc_median.size(); i++)
+    //    outf2<<black_acc_median[i]<<endl;
 
     //for (int i =0; i < err_mean.size(); i++)
     //    outf2<<err_mean[i]<<endl;
 
-    outf2.close();
+    //outf2.close();
 
     
 }
