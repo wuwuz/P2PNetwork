@@ -87,3 +87,8 @@ higher initial erros but performs well
 inflation_800_after_planet_100_64(attack after 20 rounds)
 inflation_400_after_planet_100_64(attack after 20 rounds)
 newton performs well
+
+
+-----------
+Attack against the network protocol
+15.

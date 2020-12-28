@@ -1,9 +1,10 @@
 CFLAGS = -g -Wall -std=c++11 -mpopcnt -march=native
 
-all: coordinate_test
+all: sim
 
-coordinate_test: coordinate_test.cpp coordinate.h
-	g++ $(CFLAGS) coordinate.h coordinate_test.cpp 
+sim: coordinate.h sim.cpp 
+	g++ $(CFLAGS) -o sim sim.cpp 
 
 clean:
+	rm -f sim
 	rm -f coordinate_test

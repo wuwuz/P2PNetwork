@@ -290,6 +290,11 @@ public:
         //Set the absolute error = 2
     }
 
+    //return black_list
+    std::unordered_set<int> black_(){
+        return blacklist;
+    }
+
     Coordinate<D> coordinate() {
         return local_coord;
     }
@@ -308,7 +313,7 @@ public:
 
         //First check blacklist!
         if (blacklist.find(remote_id) != blacklist.end()) {
-            printf("blocked: self id = %d, remote id = %d\n", self_id, remote_id);
+            //printf("blocked: self id = %d, remote id = %d\n", self_id, remote_id);
             return;
         }
 
@@ -443,7 +448,7 @@ public:
             std::fabs(weighted_force_magnitude) > history_median + 8 * median_dev) { 
             //history_force_stat.show();
             //printf("w = %.2f Violates IN3: decelaration rule, remote_id = %d\n", weighted_force_magnitude, remote_id);
-            printf("Violates IN3\n");
+            //printf("Violates IN3\n");
             return;
         } else {
             if (rtt == 10000) {
@@ -501,15 +506,15 @@ public:
                 }
             }
 
-            printf("Violates In1\n");
+            //printf("Violates In1\n");
             //printf("Violates In1, centroid mag = %.2f, self_id = %d, mal id = %d\n", centroid.magnitude(), self_id, malicious_id);
             EuclideanVector<D> new_coord = local_coord.vector() - force;
             double new_height = local_coord.height();
             double new_err = local_coord.error();
             local_coord = Coordinate<D>(new_coord, new_height, new_err);
 
-            centroid.show();
-            printf("\n");
+            //centroid.show();
+            //printf("\n");
             
             random_peer_set.erase(malicious_id);
             peer_coord.erase(malicious_id);
