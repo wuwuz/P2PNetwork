@@ -1202,7 +1202,7 @@ void init() {
         fscanf(f, "%lf%lf", &coord[i].lat, &coord[i].lon);
     }
 
-    n = 5000;
+    n = 500;
     
     for (int i = 0; i < n; i++) {
         vector<pair<double, int> > rk;
@@ -1234,16 +1234,16 @@ int main() {
     //k_means();
     //simulation<k_means_cluster<2> >(rept, mal_node);
 
-    generate_random_virtual_coordinate();
-    k_means_based_on_virtual_coordinate();
-    simulation<k_means_cluster<4> >(rept, mal_node);
+    //generate_random_virtual_coordinate();
+    //k_means_based_on_virtual_coordinate();
+    //simulation<k_means_cluster<4> >(rept, mal_node);
 
-    generate_virtual_coordinate();
-    k_means_based_on_virtual_coordinate();
-    simulation<k_means_cluster<4> >(rept, mal_node);
+    //generate_virtual_coordinate();
+    //k_means_based_on_virtual_coordinate();
+    //simulation<k_means_cluster<4> >(rept, mal_node);
 
-    k_means();
-    simulation<k_means_cluster<4> >(rept, mal_node);
+    //k_means();
+    //simulation<k_means_cluster<4> >(rept, mal_node);
 
 
 

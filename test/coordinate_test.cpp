@@ -121,14 +121,14 @@ void larger_test() {
             //if (iter != malicious_nodes.end() ){ //and i > 20 * n
             //    rtt = planetLab_latency[x][y] + (rand()%901+100);
             //    EuclideanVector<D> yy;
-            //    yy.v[0] = rand()%601 + (-400);
+            //    yy.v[0] = rand()%501 + (-300);
             //    yy.v[1] = rand()%401 + (-200);
             //    cy = Coordinate<D>(yy, 0, 0.01);
             //}
 
             //deflation attack: coordinate(0,0), low error=0.01, 
             //vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
-            //if (iter != malicious_nodes.end() and i > 20 * n){ //
+            //if (iter != malicious_nodes.end()){ //
             //   rtt = planetLab_latency[x][y];
             //    EuclideanVector<D> yy;
             //    yy.v[0] = 0.0;
@@ -251,29 +251,29 @@ void larger_test() {
 
     }
 
-    ofstream outf1; 
+    //ofstream outf1; 
 
     //ofstream outf2;
 
-    outf1.open("/Users/zengly/Downloads/P2PNetwork/test/outputs/err_median_inflation_30_800.txt");
+    //outf1.open("/Users/zengly/Downloads/P2PNetwork/test/outputs/err_median_inflation_30_800.txt");
 
     //outf2.open("/outputs/err_mean.txt");
 
-    for (int i =0; i < err_median.size(); i++)
-        outf1<<err_median[i]<<endl;
+    //for (int i =0; i < err_median.size(); i++)
+    //    outf1<<err_median[i]<<endl;
 
     //for (int i =0; i < err_mean.size(); i++)
     //    outf2<<err_mean[i]<<endl;
 
-    outf1.close();
+    //outf1.close();
     //outf2.close();
 
     //coordinate 
-    //ofstream outf; 
-    //outf.open("coordinate.txt");
-    //for (int i = 0; i < n; i++)
-    //    outf<<model[i].coordinate().vector().v[0]<<","<<model[i].coordinate().vector().v[1]<<","<<model[i].coordinate().height()<<endl;
-    //outf.close();
+    ofstream outf; 
+    outf.open("/Users/zengly/Downloads/P2PNetwork/test/outputs/coordinate_inflation_30.txt");
+    for (int i = 0; i < n; i++)
+        outf<<model[i].coordinate().vector().v[0]<<","<<model[i].coordinate().vector().v[1]<<","<<model[i].coordinate().height()<<endl;
+    outf.close();
 
     //ofstream outf2; 
 
