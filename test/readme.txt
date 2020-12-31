@@ -88,7 +88,11 @@ inflation_800_after_planet_100_64(attack after 20 rounds)
 inflation_400_after_planet_100_64(attack after 20 rounds)
 newton performs well
 
+15. placements(origin/under attacks)
+output:
+placement_newtion_origin(breakdown/disorder/inflation/deflation).pdf
+attacks have a noticeable impact on coordinates
 
 -----------
 Attack against the network protocol
-15.
+16.
