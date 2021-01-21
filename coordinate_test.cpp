@@ -80,7 +80,7 @@ void calc_err_stat(VivaldiModel<D>* model, T* real_coord, int n, int mal_n = 0) 
 
     printf("err min = %.2f\n", err_stat[0]);
     for (int i = 5; i <= 9; i++)
-        printf("err %d% = %.2f\n", i * 10, err_stat[int(err_stat.size() * i / 10)]);
+        printf("err P%d %.2f\n", i * 10, err_stat[int(err_stat.size() * i / 10)]);
     printf("err max = %.2f\n", err_stat[err_stat.size() - 1]);
 
 }
@@ -139,15 +139,15 @@ void larger_test() {
             for (auto y: selected_neighbor)
             {
                 double rtt = distance(real_coord[x], real_coord[y]) + 100;
-                double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
-                double relative_err = std::fabs(est_rtt - rtt) / rtt;
+                //double est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
+                //double relative_err = std::fabs(est_rtt - rtt) / rtt;
 
-                Coordinate<D> cx = model[x].coordinate();
+                //Coordinate<D> cx = model[x].coordinate();
                 Coordinate<D> cy = model[y].coordinate();
 
                 //if (y == 0 && i > TEST_ROUND * 2 / 3)
                 //    rtt = 10000;
-                if (y < mal_n == 0 && test_round > TEST_ROUND / 2) {
+                if (y < mal_n && test_round > TEST_ROUND / 2) {
                     double tmp[2] = {random_between_0_1() * 500, random_between_0_1() * 500};
                     cy = Coordinate<D>(EuclideanVector<D>(tmp), 100, 0.1);
                 }
@@ -159,8 +159,8 @@ void larger_test() {
                 model[x].observe(y, cy, rtt);
                 //model[y].observe(x, cx, rtt);
 
-                double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
-                double new_err = std::fabs(new_est_rtt - rtt) / rtt;
+                //double new_est_rtt = estimate_rtt(model[x].coordinate(), model[y].coordinate());
+                //double new_err = std::fabs(new_est_rtt - rtt) / rtt;
 
                 
                 /*

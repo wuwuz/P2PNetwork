@@ -17,10 +17,12 @@ const double pi = acos(-1);
 const double R = 6371000; // radius of the earth
 const double inf = 1e8;
 const int MAX_DEPTH = 20;
-const double FIXED_DELAY = 200;
+const double FIXED_DELAY = 250;
 const int ROOT_FANOUT = 64;
-const int FANOUT = 16;
-const int MAX_TEST_N = 3000;
+const int SECOND_FANOUT = 64;
+const int FANOUT = 8;
+const int INNER_DEG = 5;
+const int MAX_TEST_N = 8000;
 //typedef unsigned int int;
 int n;
 mt19937 rd(1000);
@@ -53,7 +55,7 @@ double distance(const LatLonCoordinate &a, const LatLonCoordinate &b) {
     double latB = rad(b.lat), lonB = rad(b.lon);
     double C = cos(latA) * cos(latB) * cos(lonA - lonB) + sin(latA) * sin(latB);
     double dist = acos(C) * R ;
-    return dist / 100000;
+    return dist / 100000 * 2;
 }
 
 class message {
@@ -163,7 +165,7 @@ class basic_algo {
     //static const char* get_algo_name();
 };
 
-template<int root_fanout = ROOT_FANOUT, int fanout = FANOUT>
+template<int root_fanout = ROOT_FANOUT, int second_fanout = SECOND_FANOUT, int fanout = FANOUT>
 class random_flood : public basic_algo {
 
 // random flood : 
@@ -215,6 +217,18 @@ class random_flood : public basic_algo {
                     ret.push_back(v);
             }
         }
+
+        if (msg.step == 1) {
+            mt19937 rng(u);
+            int remain_deg = second_fanout - ret.size();
+            for (int i = 0; i < remain_deg; i++) {
+                int v = rng() % n;
+                if (u != v && std::find(ret.begin(), ret.end(), v) == ret.end()) {
+                    ret.push_back(v);
+                }
+            }
+        }
+
         return ret;
     }
 
@@ -343,7 +357,7 @@ class from_near_to_far : public basic_algo {
 };
 */
 
-template<int root_deg = ROOT_FANOUT, int normal_deg = FANOUT>
+template<int root_deg = ROOT_FANOUT, int second_deg = SECOND_FANOUT, int normal_deg = FANOUT>
 class static_build_tree : public basic_algo {
 // static_build_tree:
 // Suppose the broadcast root is [root].
@@ -363,6 +377,7 @@ class static_build_tree : public basic_algo {
     double dist[N];
     int out_bound_cnt[N];
     int list[N];
+    int depth[N];
   
   public: 
     const static bool specified_root = true;
@@ -370,6 +385,7 @@ class static_build_tree : public basic_algo {
         memcle(dist);
         memcle(out_bound_cnt);
         memcle(list);
+        memcle(depth);
 
         vector<pair<double, int> > rk;
         for (int j = 0; j < n; j++) 
@@ -472,13 +488,13 @@ void generate_virtual_coordinate() {
 
     sort(err_stat.begin(), err_stat.end());
 
-    printf("err min = %.2f\n", err_stat[0]);
-    printf("err 50% = %.2f\n", err_stat[err_stat.size() / 2]);
-    printf("err 90% = %.2f\n", err_stat[int(err_stat.size() * 0.9)]);
-    printf("err max = %.2f\n", err_stat[err_stat.size() - 1]);
+    printf("err min %.2f\n", err_stat[0]);
+    printf("err P50 %.2f\n", err_stat[err_stat.size() / 2]);
+    printf("err P90 %.2f\n", err_stat[int(err_stat.size() * 0.9)]);
+    printf("err max %.2f\n", err_stat[err_stat.size() - 1]);
 }
 
-const static int K = 8;
+const static int K = 6;
 const static int max_iter = 100;
 int cluster_cnt[K];
 int cluster_result[N];
@@ -554,7 +570,7 @@ void k_means() {
     
     printf("cluster result \n");
     for (int i = 0; i < K; i++)
-        printf("%d ", cluster_list[i].size());
+        printf("%lu ", cluster_list[i].size());
     printf("\n");
 }
 void k_means_based_on_virtual_coordinate() {
@@ -617,7 +633,7 @@ void k_means_based_on_virtual_coordinate() {
 
     printf("cluster result \n");
     for (int i = 0; i < K; i++)
-        printf("%d ", cluster_list[i].size());
+        printf("%lu ", cluster_list[i].size());
     printf("\n");
 }
 
@@ -679,7 +695,7 @@ vector<int> k_means_based_on_virtual_coordinate_subset(vector<int> subset) {
 }
 
 
-template <int root_fanout = ROOT_FANOUT, int fanout = FANOUT>
+template <int root_fanout = ROOT_FANOUT, int second_fanout = SECOND_FANOUT, int fanout = FANOUT>
 class k_means_cluster : public basic_algo {
 // k_means_cluster:
 // firstly build K clusters (K = 8)
@@ -690,11 +706,11 @@ class k_means_cluster : public basic_algo {
     graph G; // random graph
     const int random_out = 4;
     static constexpr const char* algo_name = "cluster";
-
+    mt19937 rng;
 
   public: 
     const static bool specified_root = true;
-    k_means_cluster(int n, LatLonCoordinate *coord, int root = 0) : G(n) {
+    k_means_cluster(int n, LatLonCoordinate *coord, int root = 0) : G(n), rng(100) {
         //std::mt19937 rng;
         
         // root builds connections
@@ -711,7 +727,7 @@ class k_means_cluster : public basic_algo {
             if (i != root) {
                 int c = cluster_result[i];
                 // 6 out_bound in the same cluster
-                int inner_deg = 8;
+                int inner_deg = INNER_DEG;
 
                 if (cluster_cnt[c] <= inner_deg + 1) {
                     for (int j : cluster_list[c])
@@ -768,6 +784,7 @@ class k_means_cluster : public basic_algo {
         int u = msg.dst;
         vector<int> nb_u = G.outbound(u);
         vector<int> ret;
+
         int cnt = 0;
         for (auto v : nb_u) 
             if (v != msg.src) {
@@ -776,6 +793,31 @@ class k_means_cluster : public basic_algo {
                 //if (msg.step > 1 && cnt >= 8) break;
                 //if (msg.step > 3 && cnt >= 2) break;
             }
+
+        if (msg.step == 0) {
+            //mt19937 rng(u);
+            int remain_deg = root_fanout - ret.size();
+            for (int i = 0; i < remain_deg; i++) {
+                int v = rng() % n;
+                if (u != v && std::find(ret.begin(), ret.end(), v) == ret.end()) {
+                    ret.push_back(v);
+                }
+            }
+        }
+
+        if (msg.step == 1) {
+            //mt19937 rng(u);
+            int remain_deg = second_fanout - ret.size();
+            for (int i = 0; i < remain_deg; i++) {
+                int v = rng() % n;
+                if (u != v && std::find(ret.begin(), ret.end(), v) == ret.end()) {
+                    ret.push_back(v);
+                }
+            }
+            if (u <= 100) {
+                //printf("%d %d %d\n", second_fanout, ret.size(), remain_deg);
+            }
+        }
         return ret;
     }
 
@@ -935,6 +977,7 @@ class perigee_observation {
     }
 };
 
+template<int fanout = FANOUT>
 class perigee_ubc : public basic_algo {
 // perigee_ubc
 // https://arxiv.org/pdf/2006.14186.pdf
@@ -947,7 +990,7 @@ class perigee_ubc : public basic_algo {
 
   private: 
     graph G; // random graph
-    static constexpr int deg = 8;
+    //static constexpr int deg = 8;
     static constexpr const char* algo_name = "perigee_ubc";
     //perigee_observation obs[N][deg];
     vector<unique_ptr<perigee_observation> > obs[N];
@@ -963,7 +1006,7 @@ class perigee_ubc : public basic_algo {
     perigee_ubc(int n, LatLonCoordinate *coord, int root = 0) : G(n) {
         // TODO: inbound has far more than 8
         for (int u = 0; u < n; u++) {
-            int dg = deg;
+            int dg = fanout;
             //if (u == root)
             //    dg = 32 - 1;
             for (int k = 0; k < dg; k++) {
@@ -1002,7 +1045,7 @@ class perigee_ubc : public basic_algo {
                         double delay_time = 50; // delay_time = 10ms per link
                         if (u == root) delay_time = 0;
                         for (auto v : relay_list) {
-                            double dist = distance(coord[u], coord[v]) + FIXED_DELAY; // rtt : 10 + distance(u, v)
+                            double dist = distance(coord[u], coord[v]) * 2 + FIXED_DELAY; // rtt : 10 + distance(u, v)
                             message new_msg = message(root, u, v, msg.step + 1, recv_time[u] + delay_time, recv_time[u] + dist + delay_time);
                             msg_queue.push(new_msg);
                         }
@@ -1044,13 +1087,13 @@ class perigee_ubc : public basic_algo {
 
         if (max_lcb > min_ucb) {
             int u = obs[v][arg_max_lcb] -> u;
-            auto lcb_ucb = obs[v][arg_max_lcb] -> get_lcb_ucb();
-            int len = obs[v][arg_max_lcb] -> obs.size();
+            //auto lcb_ucb = obs[v][arg_max_lcb] -> get_lcb_ucb();
+            //int len = obs[v][arg_max_lcb] -> obs.size();
 
-            auto bst = obs[v][arg_min_ucb] -> get_lcb_ucb();
-            int bst_u = obs[v][arg_min_ucb] -> u;
-            printf("best (%.2f %.2f) (%d, %d), distance = %.2f\n", bst.first, bst.second, bst_u, v, distance(coord[bst_u], coord[v]));
-            printf("worst (%.2f %.2f) (%d, %d), distance = %.2f\n", lcb_ucb.first, lcb_ucb.second, u, v, distance(coord[u], coord[v]));
+            //auto bst = obs[v][arg_min_ucb] -> get_lcb_ucb();
+            //int bst_u = obs[v][arg_min_ucb] -> u;
+            //printf("best (%.2f %.2f) (%d, %d), distance = %.2f\n", bst.first, bst.second, bst_u, v, distance(coord[bst_u], coord[v]));
+            //printf("worst (%.2f %.2f) (%d, %d), distance = %.2f\n", lcb_ucb.first, lcb_ucb.second, u, v, distance(coord[u], coord[v]));
             G.del_edge(u, v);
 
             int new_u = random_num(n);
@@ -1082,6 +1125,7 @@ class perigee_ubc : public basic_algo {
 
 
 
+template<int fanout = FANOUT>
 class block_p2p : public basic_algo {
 // block p2p
 // firstly build K clusters (K = 8)
@@ -1090,8 +1134,8 @@ class block_p2p : public basic_algo {
 
   private: 
     graph G; // random graph
-    const int random_out = 4;
-    const int dist_out = 4;
+    static constexpr int random_out = fanout / 2;
+    static constexpr int dist_out = fanout - random_out;
     static constexpr const char* algo_name = "blockp2p";
 
 
@@ -1149,7 +1193,7 @@ class block_p2p : public basic_algo {
 
 class test_result {
   public : 
-    double dup_rate;
+    double avg_bnd;
     double avg_latency;
     vector<double> latency;
     double depth_cdf[MAX_DEPTH];
@@ -1157,16 +1201,17 @@ class test_result {
     vector<double> cluster_avg_latency;
     vector<double> cluster_avg_depth;
 
-    test_result() : dup_rate(0), avg_latency(0), latency(21, 0), 
-        cluster_avg_depth(20, 0), cluster_avg_latency(20, 0) {
+    test_result() : avg_bnd(0), avg_latency(0), latency(21, 0), 
+        cluster_avg_latency(20, 0),
+        cluster_avg_depth(20, 0) {
         memcle(depth_cdf);
     }
     void print_info() {
-        fprintf(stderr, "dup_rate");
+        fprintf(stderr, "bandwidth");
         for (int i = 0; i < 21; i++)
             fprintf(stderr, ", %.2f", i * 0.05);
         fprintf(stderr, "\n");
-        fprintf(stderr, "%.2f", dup_rate);
+        fprintf(stderr, "%.2f", avg_bnd);
         for (int i = 0; i < 21; i++)
             fprintf(stderr, ", %.2f", latency[i]);
         fprintf(stderr, "\n");
@@ -1232,7 +1277,7 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
                 depth[u] = depth[msg.src] + 1;
 
             auto relay_list = (*algo).respond(msg);
-            double delay_time = 50; // delay_time = 10ms per link
+            double delay_time = 0; // delay_time = 10ms per link
             //double delay_time = 0; // delay_time = 10ms per link
             if (u == root) delay_time = 0;
             for (auto v : relay_list) {
@@ -1272,7 +1317,8 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
 
 
         int non_mal_node = recv_list.size();
-        result.dup_rate += (double(dup_msg) / (dup_msg + non_mal_node));
+        //result.dup_rate += (double(dup_msg) / (dup_msg + non_mal_node));
+        result.avg_bnd += (double(dup_msg + non_mal_node) / (non_mal_node));
 
         for (int u: recv_list) {
             result.depth_cdf[depth[u]] += 1;
@@ -1294,7 +1340,7 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
     }
 
 
-    result.dup_rate /= rept_time; 
+    result.avg_bnd /= rept_time; 
     for (int i = 0; i < MAX_DEPTH; i++) 
         result.depth_cdf[i] /= rept_time; 
     for (size_t i = 0; i < result.latency.size(); i++) {
@@ -1375,7 +1421,7 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
             while (mal_flag[root] == true) root = rand() % n;
             test_time++;
             auto res = single_root_simulation<algo_T>(root, 1, mal_node, algo);
-            result.dup_rate += res.dup_rate;
+            result.avg_bnd += res.avg_bnd;
             for (size_t i = 0; i < result.latency.size(); i++) {
                 result.latency[i] += res.latency[i];
                 //if (i == 19 && result.latency[i] > 0)
@@ -1393,7 +1439,7 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
     }
 
     result.avg_latency /= test_time;
-    result.dup_rate /= test_time;
+    result.avg_bnd /= test_time;
     for (int c = 0; c < K; c++) {
         result.cluster_avg_depth[c] /= test_time;
         result.cluster_avg_latency[c] /= test_time;
@@ -1412,8 +1458,8 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
     //fprintf(stderr, "latency sum at 0.95 %.2f\n", result.latency[19]);
     fprintf(output, "%s\n", algo_T::get_algo_name());
     printf("%s\n", algo_T::get_algo_name());
-    fprintf(output, "#node, mal node, Dup Rate, ");
-    printf("#node, mal node, Dup Rate, ");
+    fprintf(output, "#node, mal node, Bandwidth, ");
+    printf("#node, mal node, Bandwidth, ");
     for (double p = 0.05; p <= 1; p += 0.05) {
         fprintf(output, "%.2f, ", p);
         printf("%.2f, ", p);
@@ -1421,8 +1467,8 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
     fprintf(output, "\n");
     printf("\n");
 
-    fprintf(output, "%d, %.2f, %.2f, ", n, mal_node, result.dup_rate);
-    printf("%d, %.2f, %.2f, ", n, mal_node, result.dup_rate);
+    fprintf(output, "%d, %.2f, %.2f, ", n, mal_node, result.avg_bnd);
+    printf("%d, %.2f, %.2f, ", n, mal_node, result.avg_bnd);
     //printf
     int cnt = 0;
     for (double p = 0.05; p <= 1; p += 0.05, cnt++) {
@@ -1512,42 +1558,32 @@ void init() {
 
 int main() {
     int rept = 1;
-    double mal_node = 0.0;
+    //double mal_node = 0.0;
     init();
 
     k_means();
-    //simulation<perigee_ubc>(rept, 0);
-    simulation<random_flood<ROOT_FANOUT> >(rept, 0);
-    //simulation<random_flood<32> >(rept, mal_node);
-    //simulation<random_flood<64> >(rept, mal_node);
-    //k_means_based_on_virtual_coordinate();
-    //generate_virtual_coordinate();
-    //k_means_based_on_virtual_coordinate();
-    //simulation<k_means_cluster<2> >(rept, mal_node);
 
+    simulation<random_flood<8, 8> >(rept, 0);
+    simulation<perigee_ubc<8> >(rept, 0);
+    simulation<block_p2p<8> >(rept, 0);
 
-    //generate_random_virtual_coordinate();
-    //k_means_based_on_virtual_coordinate();
-    //simulation<k_means_cluster<4> >(rept, mal_node);
-
-    //generate_virtual_coordinate();
-    //k_means_based_on_virtual_coordinate();
-    //simulation<k_means_cluster<4> >(rept, mal_node);
-
-    //k_means();
-    //simulation<k_means_cluster<ROOT_FANOUT, FANOUT> >(rept, mal_node);
     generate_virtual_coordinate();
-    simulation<k_means_cluster<ROOT_FANOUT, FANOUT> >(rept, mal_node);
+    k_means_based_on_virtual_coordinate();
+    simulation<k_means_cluster<8, 8, FANOUT> >(rept, 0);
+
+    /*
+    simulation<k_means_cluster<ROOT_FANOUT, 8, FANOUT> >(rept, mal_node);
+    simulation<k_means_cluster<ROOT_FANOUT, SECOND_FANOUT, FANOUT> >(rept, mal_node);
+    //simulation<k_means_cluster<ROOT_FANOUT, SECOND_FANOUT, FANOUT> >(rept, mal_node);
+    simulation<k_means_cluster<ROOT_FANOUT, 64, 64> >(rept, mal_node);
+    */
     /*
     simulation<k_means_cluster_subset<ROOT_FANOUT, FANOUT, 10> >(rept, mal_node);
     simulation<k_means_cluster_subset<ROOT_FANOUT, FANOUT, 20> >(rept, mal_node);
     simulation<k_means_cluster_subset<ROOT_FANOUT, FANOUT, 50> >(rept, mal_node);
     simulation<k_means_cluster_subset<ROOT_FANOUT, FANOUT, 100> >(rept, mal_node);
-    */
 
     //simulation<static_build_tree<64, 16> >(rept, mal_node);
-
-    /*
 
     for (int i = 0; i < 10; i++) {
         simulation<random_flood>(rept, mal_node);

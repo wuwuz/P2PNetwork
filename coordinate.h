@@ -275,13 +275,13 @@ public:
     bool have_enough_peer;
 
     VivaldiModel(int id = 0): 
-        local_coord(EuclideanVector<D>(), 0, 2.0),
         history_force_stat(100),
         self_id(id),
         history_counter(0),
         enable_IN1(false),
         enable_IN2(false),
         enable_IN3(true),
+        local_coord(EuclideanVector<D>(), 0, 2.0),
         have_enough_peer(false) {
         //Initialize the coordinate as the origin 
         //Set the height = 100 ms
