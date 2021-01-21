@@ -35,3 +35,6 @@ coordinate_test
 
 sim_output.csv
 tree_struct.txt
+aws*
+.vscode/*
+
