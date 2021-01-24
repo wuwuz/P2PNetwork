@@ -12,10 +12,10 @@ const double ADDPATIVE_TIMESTEP = 0.25;
 const double FLOAT_ZERO = 1e-6;
 const double GRAVITY_RHO = 500;
 const double MIN_ERROR = 0.1;
-const double CENTROID_DRIFT = 25;
+const double CENTROID_DRIFT = 50;
 
 const int NEAR_NEIGHBOR_NUM = 8;
-const int RANDOM_NEIGHBOR_NUM = 64;
+const int RANDOM_NEIGHBOR_NUM = 16;
 
 #define sqr(x) ((x) * (x))
 
@@ -263,7 +263,6 @@ private:
     bool enable_IN1;
     bool enable_IN2;
     bool enable_IN3;
-    bool enable_gravity;
 
     std::unordered_map<int, Coordinate<D> > peer_coord;
     std::unordered_map<int, EuclideanVector<D> > received_force;
@@ -276,23 +275,17 @@ public:
     bool have_enough_peer;
 
     VivaldiModel(int id = 0): 
-        local_coord(EuclideanVector<D>(), 0, 2.0),
         history_force_stat(100),
         self_id(id),
         history_counter(0),
-        enable_IN1(true),
-        enable_IN2(true),
+        enable_IN1(false),
+        enable_IN2(false),
         enable_IN3(true),
-        enable_gravity(false),
+        local_coord(EuclideanVector<D>(), 0, 2.0),
         have_enough_peer(false) {
         //Initialize the coordinate as the origin 
         //Set the height = 100 ms
         //Set the absolute error = 2
-    }
-
-    //return black_list
-    std::unordered_set<int> black_(){
-        return blacklist;
     }
 
     Coordinate<D> coordinate() {
@@ -313,7 +306,7 @@ public:
 
         //First check blacklist!
         if (blacklist.find(remote_id) != blacklist.end()) {
-            //printf("blocked: self id = %d, remote id = %d\n", self_id, remote_id);
+            printf("blocked: self id = %d, remote id = %d\n", self_id, remote_id);
             return;
         }
 
@@ -371,13 +364,12 @@ public:
         double weighted_error = ERROR_LIMIT * weight;
         double new_error = relative_error * weighted_error
             + local_coord.error() * (1.0 - weighted_error);
-
         if (new_error < MIN_ERROR)
             new_error = MIN_ERROR;
 
-        //if (new_error > local_coord.error()) {
-        //    //printf("DRIFTING\n");
-        //}
+        if (new_error > local_coord.error()) {
+            //printf("DRIFTING\n");
+        }
 
         // Calculate the adaptive timestep (part of 4)
         //
@@ -397,9 +389,9 @@ public:
         if (weighted_force_magnitude > 100)
             return;
 
-        //if (rtt == 10000) {
+        if (rtt == 10000) {
             //printf("self_id = %d, w = %.2f\n", self_id, weighted_force_magnitude);
-        //}
+        }
 
         // Unit vector (part of 4)
         //
@@ -414,7 +406,7 @@ public:
         } else {
             // calculate the unit vector (remote ---> self)
             //unit_v = v / v.magnitude();
-            unit_v = v / predict_rtt;   //bug? v does not contain the height but predict_rtt contains the height
+            unit_v = v / predict_rtt;
         }
         // Calculate the new height of the local node:
         //
@@ -445,10 +437,9 @@ public:
         if (enable_IN3 &&
             history_counter > 20 && 
             std::fabs(weighted_force_magnitude) > 20 &&
-            std::fabs(weighted_force_magnitude) > history_median + 5 * median_dev) { 
+            std::fabs(weighted_force_magnitude) > history_median + 8 * median_dev) { 
             //history_force_stat.show();
             //printf("w = %.2f Violates IN3: decelaration rule, remote_id = %d\n", weighted_force_magnitude, remote_id);
-            //printf("Violates IN3\n");
             return;
         } else {
             if (rtt == 10000) {
@@ -467,15 +458,12 @@ public:
 
         EuclideanVector<D> new_coord = local_coord.vector() + force;
 
-        if (enable_gravity){
-            // Add Gravity force
-            double new_coord_mag = new_coord.magnitude();
-            EuclideanVector<D> unit_dir = new_coord / new_coord_mag;
-            double gravity_weight = sqr(new_coord_mag / GRAVITY_RHO);
-            //double gravity_weight = new_coord_mag / 500;
-            new_coord = new_coord - unit_dir * gravity_weight;
-        }
-        
+        // Add Gravity force
+        double new_coord_mag = new_coord.magnitude();
+        EuclideanVector<D> unit_dir = new_coord / new_coord_mag;
+        double gravity_weight = sqr(new_coord_mag / GRAVITY_RHO);
+        //double gravity_weight = new_coord_mag / 500;
+        new_coord = new_coord - unit_dir * gravity_weight;
 
         //Update the local coordinate
         local_coord = Coordinate<D>(new_coord, new_height, new_error);
@@ -506,15 +494,14 @@ public:
                 }
             }
 
-            //printf("Violates In1\n");
-            //printf("Violates In1, centroid mag = %.2f, self_id = %d, mal id = %d\n", centroid.magnitude(), self_id, malicious_id);
+            printf("Violates In1, centroid mag = %.2f, self_id = %d, mal id = %d\n", centroid.magnitude(), self_id, malicious_id);
             EuclideanVector<D> new_coord = local_coord.vector() - force;
             double new_height = local_coord.height();
             double new_err = local_coord.error();
             local_coord = Coordinate<D>(new_coord, new_height, new_err);
 
-            //centroid.show();
-            //printf("\n");
+            centroid.show();
+            printf("\n");
             
             random_peer_set.erase(malicious_id);
             peer_coord.erase(malicious_id);
