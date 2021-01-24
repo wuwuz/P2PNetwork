@@ -12,7 +12,7 @@
 
 using namespace std;
 const int N = 3000;
-const int TEST_ROUND = 40;
+const int TEST_ROUND = 100;
 const double FIXED_DELAY = 200;
 
 //dimension
@@ -97,8 +97,9 @@ void larger_test() {
         fscanf(f, "%lf%lf", &world_coord[i][0], &world_coord[i][1]);
     }
 
-    n = 2000;
-    mal_n = 0;
+    n = 1000;
+    mal_n = n * 0.40;
+    printf("malicious node = %d", mal_n);
     EuclideanVector<2> real_coord[N];
     for (int i = 0; i < n; i++) 
         for (int j = 0; j < 2; j++)
@@ -114,7 +115,7 @@ void larger_test() {
 
     VivaldiModel<D> model[N];
     for (int i = 0; i < n; i++)
-        model[i] = VivaldiModel<D>(i);
+        model[i] = VivaldiModel<D>(i, false, false, true);
 
     for (int test_round = 0; test_round < TEST_ROUND; test_round++) {
         if (test_round % 20 == 0) {
@@ -147,14 +148,15 @@ void larger_test() {
 
                 //if (y == 0 && i > TEST_ROUND * 2 / 3)
                 //    rtt = 10000;
-                if (y < mal_n && test_round > TEST_ROUND / 2) {
-                    double tmp[2] = {random_between_0_1() * 500, random_between_0_1() * 500};
+                if (y < mal_n && test_round > TEST_ROUND / 3) {
+                    double tmp[2] = {random_between_0_1() * 100, random_between_0_1() * 100};
+                    //double tmp[2] = {500, 500};
                     cy = Coordinate<D>(EuclideanVector<D>(tmp), 100, 0.1);
                 }
 
-                if (rand() % 3 == 0) {
-                    rtt = 5000;
-                }
+                //if (rand() % 3 == 0) {
+                //    rtt = 2000;
+               // }
 
                 model[x].observe(y, cy, rtt);
                 //model[y].observe(x, cx, rtt);
