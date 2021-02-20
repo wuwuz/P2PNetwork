@@ -94,7 +94,7 @@ placement_newtion_origin(breakdown/disorder/inflation/deflation).pdf
 attacks have a noticeable impact on coordinates
 
 -----------
-Attack against the propagation scheme
+Attack against the propagation scheme(8000nodes)
 
 16.no-response attack(attackers do not deliver msg)
 output:
