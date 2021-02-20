@@ -94,5 +94,34 @@ placement_newtion_origin(breakdown/disorder/inflation/deflation).pdf
 attacks have a noticeable impact on coordinates
 
 -----------
-Attack against the network protocol
-16.
+Attack against the propagation scheme
+
+16.no-response attack(attackers do not deliver msg)
+output:
+broadcast_no_response_attack.pdf
+still performs better than the randon-flooding scheme with 50% malicious nodes.
+
+17.rtt stability(up-down 5%/10%/20%/50%)
+output:
+broadcast_rtt_stability.pdf
+not affected
+
+18.rtt breakdown(5%/10%/20%/30%/50%)
+output:
+broadcast_rtt_breakdown.pdf
+delays greatly increase with 50% breakdown nodes.
+
+the following attacks are under the no-response attack
+19.disorder attack
+output:
+broadcast_disorder_attack
+20.deflation attack
+output:
+broadcast_deflation_attack.pdf
+21.inflation attack
+output:
+broadcast_inflation_attack.pdf
+
+conclusion: 
+1.performs better than the randon-flooding with <=40% malicious nodes.
+2.performs poorer with 50% malicious nodes.

@@ -139,7 +139,7 @@ void larger_test() {
             //inflation attack: large coordinate, low error=0.01, 
             vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
             if (iter != malicious_nodes.end()){ //and i > 20 * n
-                rtt = planetLab_latency[x][y];
+                //rtt = planetLab_latency[x][y];
                 EuclideanVector<D> yy;
                 yy.v[0] = 800;
                 yy.v[1] = 800;

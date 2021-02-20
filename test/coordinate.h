@@ -266,6 +266,7 @@ private:
 
     std::unordered_map<int, Coordinate<D> > peer_coord;
     std::unordered_map<int, EuclideanVector<D> > received_force;
+    std::unordered_map<int, std::deque<Coordinate<D> > > received_coord;
     std::unordered_map<int, HistoryStat<double> > received_rtt;
     std::unordered_set<int> blacklist;
 
@@ -274,13 +275,13 @@ public:
     std::unordered_set<int> random_peer_set;
     bool have_enough_peer;
 
-    VivaldiModel(int id = 0): 
+    VivaldiModel(int id = 0, bool _in1 = false, bool _in2 = false, bool _in3 = true): 
         history_force_stat(100),
         self_id(id),
         history_counter(0),
-        enable_IN1(false),
-        enable_IN2(false),
-        enable_IN3(true),
+        enable_IN1(_in1),
+        enable_IN2(_in2),
+        enable_IN3(_in3),
         local_coord(EuclideanVector<D>(), 0, 2.0),
         have_enough_peer(false) {
         //Initialize the coordinate as the origin 
@@ -315,6 +316,7 @@ public:
                 peer_coord.emplace(remote_id, remote_coord);
                 received_force.emplace(remote_id, EuclideanVector<D>());
                 received_rtt.emplace(remote_id, HistoryStat<double>(10));
+                received_coord.emplace(remote_id, std::deque<Coordinate<D> >());
 
                 random_peer_set.insert(remote_id);
                 if (random_peer_set.size() == RANDOM_NEIGHBOR_NUM)
@@ -339,6 +341,27 @@ public:
                 //printf("\n");
                 //printf("self_id = %d, remote_id = %d\n", self_id, remote_id);
             }
+
+            auto itt = received_coord.find(remote_id);
+            if (itt != received_coord.end()) {
+                auto &past_coord_queue = received_coord.find(remote_id) -> second;
+                if (past_coord_queue.size() > 0) {
+                    Coordinate<D> last_coord = past_coord_queue.back();
+                    if (last_coord.error() <= 0.3 && remote_coord.error() <= 0.3) {
+                        double coord_diff = (last_coord.vector() - remote_coord.vector()).magnitude();
+                        if (coord_diff > 50) {
+                            return;
+                        }
+                    }
+                }
+
+                if (past_coord_queue.size() == 10) {
+                    past_coord_queue.pop_front();
+                }
+                past_coord_queue.push_back(remote_coord);
+                //printf("queue size = %d\n", past_coord_queue.size());
+            }
+
         }
 
         // Sample weight balances local and remote error (1)
