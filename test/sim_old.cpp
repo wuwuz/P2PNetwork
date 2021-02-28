@@ -12,7 +12,6 @@
 #define memcle(a) memset(a, 0, sizeof(a))
 
 using namespace std;
-const static int K = 10;
 const int N = 8500;
 const double pi = acos(-1);
 const double R = 6371000; // radius of the earth
@@ -31,11 +30,9 @@ mt19937 rd(1000);
 bool recv_flag[N];
 int recv_parent[N];
 double recv_time[N]; 
-double recv_dist[N]; 
 int depth[N];
 
 int mal_flag[N];
-FILE* fig_csv;
 
 
 // coordinate, using longitude and latitude
@@ -444,23 +441,22 @@ VivaldiModel<D> vivaldi_model[N];
 void generate_random_virtual_coordinate() {
     for (int i = 0; i < n; i++) {
         vivaldi_model[i] = VivaldiModel<D>(i);
-        double tmp[2] = {random_between_0_1() * 1000, random_between_0_1() * 1000};
+        double tmp[2] = {random_between_0_1() * 500, random_between_0_1() * 500};
         vivaldi_model[i].local_coord = Coordinate<D>(tmp, 0, 0.1);
     }
 }
 
-void generate_virtual_coordinate(double mal_node = 0.0) {
+void generate_virtual_coordinate(double mal_node = 0.0) {  //
     // init
     printf("n is %d\n", n);
     printf("malicious %f\n", mal_node);
 
-    // init
     for (int i = 0; i < n; i++)
         vivaldi_model[i] = VivaldiModel<D>(i);
 
     //select malicious nodes
     vector<int> malicious_nodes;
-    while(mal_node != 0.0 and malicious_nodes.size() < mal_node * n){
+    while(mal_node != 0.0 and malicious_nodes.size() <= mal_node * n){
         int id_ = random_num(n);
         vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), id_);
         while (iter != malicious_nodes.end())
@@ -473,6 +469,7 @@ void generate_virtual_coordinate(double mal_node = 0.0) {
     }
     printf("malicious_size %d\n", malicious_nodes.size());
 
+    ////
     
     for (int round = 0; round < COORDINATE_UPDATE_ROUND; round++) {
         //printf("%d\n", round);
@@ -493,6 +490,16 @@ void generate_virtual_coordinate(double mal_node = 0.0) {
             {
                 double rtt = distance(coord[x], coord[y]) + FIXED_DELAY;
 
+                //stability rtt = 95%-105%, 90%-110%, 80%-120%, 50%-150%
+                //rtt = rtt * (rand()%11 + 95)/100.0;
+                //rtt = rtt * (rand()%21 + 90)/100.0;
+                //rtt = rtt * (rand()%41 + 80)/100.0;
+                //rtt = rtt * (rand()%101 + 50)/100.0;
+
+                //breakdown rtt is large(1000ms)5% 10% 20% 30% 50%
+                //if (rand() % 100 < 50)
+                //    rtt = 1000;
+                
                 Coordinate<D> cy = vivaldi_model[y].coordinate();
                 
                 //disorder attack: random coordinate, low error 0.01, rtt delay[100...1000]
@@ -502,6 +509,16 @@ void generate_virtual_coordinate(double mal_node = 0.0) {
                 //    EuclideanVector<D> yy;
                 //    yy.v[0] = rand()%201 + (-100); //-43 69
                 //    yy.v[1] = rand()%401 + (-200); //-157 175
+                //    cy = Coordinate<D>(yy, 0, 0.01);
+                //}
+
+                //deflation attack: coordinate(0,0), low error=0.01, 
+                //vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
+                //if (iter != malicious_nodes.end()){ //
+                //    rtt = distance(coord[x], coord[y]) + FIXED_DELAY;
+                //    EuclideanVector<D> yy;
+                //    yy.v[0] = 0.0;
+                //    yy.v[1] = 0.0;
                 //    cy = Coordinate<D>(yy, 0, 0.01);
                 //}
 
@@ -515,17 +532,7 @@ void generate_virtual_coordinate(double mal_node = 0.0) {
                 //    cy = Coordinate<D>(yy, 0, 0.01);
                 //}
 
-                //deflation attack: coordinate(0,0), low error=0.01, 
-                vector<int>::iterator iter = std::find(malicious_nodes.begin(), malicious_nodes.end(), y);
-                if (iter != malicious_nodes.end()){ //
-                    rtt = distance(coord[x], coord[y]) + FIXED_DELAY;
-                    EuclideanVector<D> yy;
-                    yy.v[0] = 0.0;
-                    yy.v[1] = 0.0;
-                    cy = Coordinate<D>(yy, 0, 0.01);
-                }
-
-                vivaldi_model[x].observe(y, cy, rtt);
+                vivaldi_model[x].observe(y, cy, rtt); //vivaldi_model[y].coordinate()
             }
         }
     }
@@ -552,6 +559,7 @@ void generate_virtual_coordinate(double mal_node = 0.0) {
     }
 }
 
+const static int K = 6;
 const static int max_iter = 100;
 int cluster_cnt[K];
 int cluster_result[N];
@@ -788,41 +796,16 @@ class k_means_cluster : public basic_algo {
             // 6 out_bound in the same cluster
             int inner_deg = INNER_DEG;
 
-            if (vivaldi_model[i].coordinate().error() < 0.4) {
-                if (cluster_cnt[c] <= inner_deg + 1) {
-                    for (int j : cluster_list[c])
-                        if (i != j)
-                            G.add_edge(i, j);
-                } else {
-                    int deg = inner_deg;
-                    vector<pair<double, int> > cluster_peer;
-                    for (int trial = 0, cnt = 0; trial < 100 && cnt < deg; trial++) {
-                        int j = cluster_list[c][random_num(cluster_cnt[c])];
-                        int j1 = cluster_list[c][random_num(cluster_cnt[c])];
-                        if (distance(vivaldi_model[i].vector(), vivaldi_model[j].vector()) > 
-                            distance(vivaldi_model[i].vector(), vivaldi_model[j1].vector()))
-                                j = j1;
-                        if (i != j) {
-                            double dist = distance(vivaldi_model[i].vector(), vivaldi_model[j].vector());
-                            cluster_peer.push_back(make_pair(dist, j));
-                            cnt += 1;
-                        }
-                    }
-                    sort(cluster_peer.begin(), cluster_peer.end());
-                    for (int j = 0, cnt = 0; j < cluster_peer.size() && cnt < deg; j++) {
-                        if (G.add_edge(i, cluster_peer[j].second)) {
-                            cnt += 1;
-                        }
-                    }
-                }
-
-/*
-                for (int trial = 0, cnt = 0; trial < 100 && cnt < deg; trial++) {
+            if (cluster_cnt[c] <= inner_deg + 1) {
+                for (int j : cluster_list[c])
+                    if (i != j)
+                        G.add_edge(i, j);
+            } else {
+                for (int trial = 0, cnt = 0; trial < 100 && cnt < inner_deg; trial++) {
                     int j = cluster_list[c][random_num(cluster_cnt[c])];
                     if (i != j && G.add_edge(i, j))
                         cnt++;
                 }
-            */
             }
 
             for (int trial = 0, cnt = 0; trial < 100 && cnt < fanout - inner_deg; trial++) {
@@ -835,29 +818,26 @@ class k_means_cluster : public basic_algo {
 
             // build the near graph
             //std::deque<pair<double, int> > nearest_peer;
-
-            if (vivaldi_model[i].coordinate().error() < 0.4) {
-                vector<pair<double, int> > nearest_peer;
-                for (int j : cluster_list[c]) {
-                    if (i != j) {
-                        double dist = distance(vivaldi_model[i].vector(), vivaldi_model[j].vector());
-                        nearest_peer.push_back(make_pair(dist, j));
-                        for (int k = nearest_peer.size() - 1; k > 0; k--) {
-                            if (nearest_peer[k - 1].first > nearest_peer[k].first) 
-                                swap(nearest_peer[k - 1], nearest_peer[k]);
-                            else 
-                                break;
-                        }
-                        if (nearest_peer.size() > inner_deg) {
-                            nearest_peer.pop_back();
-                        }
+            vector<pair<double, int> > nearest_peer;
+            for (int j : cluster_list[c]) {
+                if (i != j) {
+                    double dist = distance(vivaldi_model[i].vector(), vivaldi_model[j].vector());
+                    nearest_peer.push_back(make_pair(dist, j));
+                    for (int k = nearest_peer.size() - 1; k > 0; k--) {
+                        if (nearest_peer[k - 1].first > nearest_peer[k].first) 
+                            swap(nearest_peer[k - 1], nearest_peer[k]);
+                        else 
+                            break;
+                    }
+                    if (nearest_peer.size() > inner_deg) {
+                        nearest_peer.pop_back();
                     }
                 }
+            }
 
-                for (auto pr: nearest_peer) {
-                    //printf("near peer : (%d %d) %.3f\n", i, pr.second, pr.first);
-                    G_near.add_edge(i, pr.second);
-                }
+            for (auto pr: nearest_peer) {
+                //printf("near peer : (%d %d) %.3f\n", i, pr.second, pr.first);
+                G_near.add_edge(i, pr.second);
             }
         }
     }
@@ -867,23 +847,7 @@ class k_means_cluster : public basic_algo {
         vector<int> nb_u = G.outbound(u);
         vector<int> ret;
 
-        /*
-        if (msg.step == 0)  {
-            vector<pair<int, int> > cluster_size;
-            for (int i = 0; i < K; i++) 
-                cluster_size.push_back(make_pair(cluster_list[i].size(), i));
-            sort(cluster_size.begin(), cluster_size.end());
-            for (int i = cluster_size.size() - 1, cnt = 0; cnt < INNER_DEG && i >= 0; i--) {
-                int v = cluster_list[i][random_num(cluster_list[i].size())];
-                if (u != v) {
-                    ret.push_back(v);
-                    cnt++;
-                }
-            }
-        } else
-        */
-        if (enable_nearest && (cluster_result[msg.src] != cluster_result[u] || msg.step == 0 || msg.recv_time - msg.send_time > 100)) {
-        //if (enable_nearest && (msg.recv_time - msg.send_time > 200 || msg.step == 0)) {
+        if (enable_nearest && cluster_result[msg.src] != cluster_result[u]) {
         //if (enable_nearest && msg.recv_time - msg.send_time > 150) {
             int cnt = 0;
             for (auto v : G_near.out_bound[u]) {
@@ -894,8 +858,7 @@ class k_means_cluster : public basic_algo {
                     //if (msg.step > 3 && cnt >= 2) break;
                 }
             }
-        } 
-        else {
+        } else {
             int cnt = 0;
             for (auto v : nb_u) 
                 if (v != msg.src) {
@@ -917,12 +880,6 @@ class k_means_cluster : public basic_algo {
 
         for (int i = 0; i < remain_deg; i++) {
             int v = rng() % n;
-            /*
-            int v1 = v;
-            if (distance(vivaldi_model[u].vector(), vivaldi_model[v].vector()) 
-                > distance(vivaldi_model[u].vector(), vivaldi_model[v1].vector()))
-                    v = v1;
-                */
             if (u != v && std::find(ret.begin(), ret.end(), v) == ret.end()) {
                 ret.push_back(v);
             }
@@ -1106,7 +1063,7 @@ class perigee_ubc : public basic_algo {
     vector<unique_ptr<perigee_observation> > obs[N];
 
     // use for warmup phase
-    static constexpr int total_warmup_message = 640;
+    static constexpr int total_warmup_message = 1000;
     static constexpr int warmup_round_len = 10; // for every 100 message, execute a reselection
     int recv_flag[N]; // keep track of the newest warmup message token
     double recv_time[N];  // record the new message deliever time
@@ -1187,13 +1144,8 @@ class perigee_ubc : public basic_algo {
 
             if ((warmup_message + 1) % warmup_round_len == 0) {
                 //printf("%d\n", warmup_message);
-                int kill_cnt = 0;
-                for (int i = 0; i < n; i++)  {
-                    if (neighbor_reselection(i) == 1) {
-                        kill_cnt += 1;
-                    }
-                }
-                printf("round = %d, kill = %d\n", warmup_message / warmup_round_len, kill_cnt);
+                for (int i = 0; i < n; i++) 
+                    neighbor_reselection(i);
                 //printf("finish\n");
             }
         }
@@ -1226,8 +1178,7 @@ class perigee_ubc : public basic_algo {
         }
     }
 
-    // if reselect -- return 1
-    int neighbor_reselection(int v) {
+    void neighbor_reselection(int v) {
         double max_lcb = 0;
         int arg_max_lcb = 0;
         double min_ucb = 1e18;
@@ -1261,9 +1212,7 @@ class perigee_ubc : public basic_algo {
                 new_u = random_num(n);
 
             obs[v][arg_max_lcb].reset(new perigee_observation(new_u, v));
-            return 1;
         }
-        return 0;
     }
         
     vector<int> respond(message msg)  {
@@ -1370,7 +1319,6 @@ class test_result {
     double avg_latency;
     vector<double> latency;
     double depth_cdf[MAX_DEPTH];
-    double avg_dist[MAX_DEPTH];
 
     vector<double> cluster_avg_latency;
     vector<double> cluster_avg_depth;
@@ -1379,7 +1327,6 @@ class test_result {
         cluster_avg_latency(21, 0),
         cluster_avg_depth(21, 0) {
         memcle(depth_cdf);
-        memcle(avg_dist);
     }
     void print_info() {
         fprintf(stderr, "bandwidth");
@@ -1422,7 +1369,6 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
 
         memcle(recv_flag);
         memcle(recv_time);
-        memcle(recv_dist);
         memset(recv_parent, -1, sizeof(recv_parent));
         memcle(depth);
         vector<int> recv_list;
@@ -1435,6 +1381,8 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
 
             int u = msg.dst; // current node
 
+            // malicious node -- no response
+            //if (mal_flag[u] == true) continue;
 
             // duplicate msg -- ignore
             if (recv_flag[u] == true) {
@@ -1445,7 +1393,6 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
 
             recv_flag[u] = true;
             recv_time[u] = msg.recv_time;
-            recv_dist[u] = msg.recv_time - msg.send_time;
             recv_parent[u] = msg.src;
             recv_list.push_back(u);
             if (u != root)
@@ -1463,13 +1410,12 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
                 printf("\n");
             }
             */
-            double delay_time = FIXED_DELAY; // delay_time = 10ms per link for (auto v : relay_list) { double dist = 3 * distance(coord[u], coord[v]) + FIXED_DELAY; // rtt : 10 + distance(u, v)
+            double delay_time = 0; // delay_time = 10ms per link
             //double delay_time = 0; // delay_time = 10ms per link
-            for (auto v: relay_list) {
-                double dist = distance(coord[u], coord[v]) * 3;
-                if (msg.step == 0) {
-                    dist = distance(coord[u], coord[v]) * 3;
-                }
+            if (u == root) delay_time = 0;
+            for (auto v : relay_list) {
+                double dist = 3 * distance(coord[u], coord[v]) + FIXED_DELAY; // rtt : 10 + distance(u, v)
+                // TODO: Add random delay in transmission
                 message new_msg = message(root, u, v, msg.step + 1, recv_time[u] + delay_time, recv_time[u] + dist + delay_time);
                 msg_queue.push(new_msg);
             }
@@ -1513,7 +1459,6 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
             //if (depth[u] > 11) 
                 //printf("%d\n", depth[u]);
             result.depth_cdf[depth[u]] += 1;
-            result.avg_dist[depth[u]] += recv_dist[u];
             depth_cnt[depth[u]] += 1;
         }
 
@@ -1522,10 +1467,8 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
 
         result.avg_latency = avg_latency;
 
-        for (int i = 0; i < MAX_DEPTH; i++) {
+        for (int i = 0; i < MAX_DEPTH; i++)
             result.depth_cdf[i] /= non_mal_node;
-            result.avg_dist[i] /= depth_cnt[i];
-        }
 
         int cnt = 0;
         for (double pct = 0.05; pct <= 1; pct += 0.05, cnt++) {
@@ -1556,8 +1499,7 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
 
     // Print the tree structure (only when the root is 0)
 
-    if (algo_T::get_algo_name() == "cluster") {
-    //if (root == 0) {
+    if (root == 0) {
         FILE* pf = fopen("tree_struct.txt", "w");
         if (pf != NULL) {
             fprintf(pf, "%d %d\n", n, root);
@@ -1593,7 +1535,7 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
         //fprintf(stderr, "rept %d\n", rept);
         // 1) generate malicious node list
         memcle(mal_flag);
-        for (int i = 0; i < mal_node * n; i++){
+        for (int i = 0; i < mal_node * n; i++) {
             int picked_num = random_num(n);
             while (mal_flag[picked_num] == true)  
                 picked_num = random_num(n);
@@ -1610,15 +1552,14 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
 
         // 2) simulate the message at source i
         //int normal_node = n - mal_node * n;
-        //int test_node = max(n / 100, 10);
-        int test_node = 10;
+        int test_node = max(n / 100, 10);
         //int test_node = 1;
         //int test_node = 10;
 
         shared_ptr<algo_T> algo(new algo_T(n, coord, 0)); // initialize an algo instance, regardless of the root
         //for (int root = 0; root < n; root++) {
         for (; test_node > 0; test_node--) {
-            printf("%d\n", test_node);
+            //printf("%d\n", test_node);
             int root = rand() % n;
             while (mal_flag[root] == true) root = rand() % n;
             test_time++;
@@ -1630,10 +1571,8 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
                 //if (i == 19 && result.latency[i] > 0)
                 //    fprintf(stderr, "root %d latency sum at %.2f %.2f\n", root, 0.05 * i, result.latency[i]);
             }
-            for (int i = 0; i < MAX_DEPTH; i++) {
+            for (int i = 0; i < MAX_DEPTH; i++)
                 result.depth_cdf[i] += res.depth_cdf[i];
-                result.avg_dist[i] += res.avg_dist[i];
-            }
             result.avg_latency += res.avg_latency;
 
             for (int c = 0; c < K; c++) {
@@ -1657,10 +1596,8 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
         if (test_time - tmp == 0)
             result.latency[i] = 0;
     }
-    for (int i = 0; i < MAX_DEPTH; i++) {
+    for (int i = 0; i < MAX_DEPTH; i++)
         result.depth_cdf[i] /= test_time;
-        result.avg_dist[i] /= test_time;
-    }
 
     //fprintf(stderr, "latency sum at 0.95 %.2f\n", result.latency[19]);
     fprintf(output, "%s\n", algo_T::get_algo_name());
@@ -1726,36 +1663,8 @@ test_result simulation(int rept_time = 1, double mal_node = 0.0) {
     fprintf(output, "\n");
     printf("\n");
 
-    fprintf(output, "avg distance by depth\n");
-    printf("avg distance by depth\n");
-    for (int i = 0; i < MAX_DEPTH; i++) {
-        fprintf(output, "%.2f, ", result.avg_dist[i]);
-        printf("%.2f, ", result.avg_dist[i]);
-    }
-    fprintf(output, "\n");
-    printf("\n");
 
     fclose(output);
-
-
-
-    fig_csv = fopen("fig.csv", "a");
-    if (fig_csv == NULL) {
-        fprintf(stderr, "cannot open file\n");
-        return result;
-    }
-
-
-    fprintf(fig_csv, "%s, ", algo_T::get_algo_name());
-    cnt = 0;
-    for (double p = 0.05; p <= 1; p += 0.05, cnt++) {
-        fprintf(fig_csv, "%.2f, ", result.latency[cnt]);
-        printf("%.2f, ", result.latency[cnt]);
-    }
-    fprintf(fig_csv, "\n");
-
-    fclose(fig_csv);
-
     return result;
 }
 
@@ -1793,40 +1702,21 @@ void init() {
 
 int main() {
     int rept = 1;
-    double mal_node = 0.49;
+    double mal_node = 0.05;
     init();
 
 
     //k_means();
     //simulation<random_flood<8, 8, 8> >(rept, mal_node);
-    //simulation<random_flood<16, 16, 16> >(rept, mal_node);
-    //simulation<perigee_ubc<6, 6, 8> >(rept, 0.0);
+    //simulation<perigee_ubc<6, 6, 8> >(rept, mal_node);
     //simulation<block_p2p<8> >(rept, 0);
-    
-    
-    //generate_random_virtual_coordinate(mal_node);
-    
+
     generate_virtual_coordinate(mal_node);
     k_means_based_on_virtual_coordinate();
+    //simulation<k_means_cluster<64, 8, 8, false> >(rept, mal_node);
     simulation<k_means_cluster<128, 8, 8, true> >(rept, 0.0);
-    
-    printf("\nmal_node %.2f, ", mal_node);
 
-    //generate_virtual_coordinate();
-
-    //simulation<k_means_cluster<8, 8, 8, false> >(rept, 0.0);
-    //simulation<k_means_cluster<8, 8, 8, true> >(rept, mal_node);
-    
-    //simulation<k_means_cluster<8, 8, 8, true> >(rept, 0.0);
-    //simulation<k_means_cluster<16, 8, 8, true> >(rept, 0.0);
-    //simulation<k_means_cluster<32, 8, 8, true> >(rept, 0.0);
-    //simulation<k_means_cluster<64, 8, 8, true> >(rept, 0.0);
-    //simulation<k_means_cluster<128, 8, 8, true> >(rept, 0.0);
-    //simulation<k_means_cluster<8, 8, 8, true> >(rept, 0.0);
-    //simulation<k_means_cluster<8, 8, 8, true> >(rept, mal_node);
-
-    //simulation<k_means_cluster<64, 8, FANOUT, false> >(rept, mal_node);
-    //simulation<k_means_cluster<64, 8, FANOUT, true> >(rept, mal_node);
+    //simulation<k_means_cluster<64, 8, FANOUT> >(rept, mal_node);
 
     /*
     simulation<k_means_cluster<ROOT_FANOUT, 8, FANOUT> >(rept, mal_node);
@@ -1856,16 +1746,3 @@ int main() {
     */
     return 0;
 }
-
-
-/*
-int get_father(int x) {
-    return (fa[x] == -1) ? (x) : (fa[x] = get_father(fa[x]));
-}
-
-int merge(int x, int y) {
-    int fa_x = get_father(x);
-    int fa_y = get_father(y);
-    fa[fa_x] = fa_y;
-}
-*/

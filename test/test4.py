@@ -21,7 +21,7 @@ for k in yy:
 #print avg_
 plt.plot(x_, y_,marker="o",label='BCast(Normal)')
 
-with open("/Users/zengly/Downloads/P2PNetwork/test/sim_output_inflation_10.csv", "r") as f:
+with open("/Users/zengly/Downloads/P2PNetwork/test/sim_output_no_response_10.csv", "r") as f:
     data = f.readlines()
 x_ = []
 y_ = []
@@ -31,9 +31,9 @@ for k in xx:
 	x_.append(float(k))
 for k in yy:
 	y_.append(float(k))
-plt.plot(x_, y_,marker="+",label='BCast(Inflation)')
+plt.plot(x_, y_,marker="+",label='BCast(10% Malicious)')
 
-with open("/Users/zengly/Downloads/P2PNetwork/test/sim_output_deflation_10.csv", "r") as f:
+with open("/Users/zengly/Downloads/P2PNetwork/test/sim_output_no_response_30.csv", "r") as f:
     data = f.readlines()
 x_ = []
 y_ = []
@@ -43,9 +43,9 @@ for k in xx:
 	x_.append(float(k))
 for k in yy:
 	y_.append(float(k))
-plt.plot(x_, y_,marker="x",label='BCast(Deflation)')
+plt.plot(x_, y_,marker="x",label='BCast(30% Malicious)')
 
-with open("/Users/zengly/Downloads/P2PNetwork/test/sim_output_disorder_10.csv", "r") as f:
+with open("/Users/zengly/Downloads/P2PNetwork/test/sim_output_no_response_49.csv", "r") as f:
     data = f.readlines()
 x_ = []
 y_ = []
@@ -55,7 +55,7 @@ for k in xx:
 	x_.append(float(k))
 for k in yy:
 	y_.append(float(k))
-plt.plot(x_, y_,marker="*",label='BCast(Oscillation)')
+plt.plot(x_, y_,marker="*",label='BCast(49% Malicious)')
 
 #####
 with open("/Users/zengly/Downloads/P2PNetwork/test/sim_output_random.csv", "r") as f:
@@ -88,6 +88,6 @@ plt.legend(bbox_to_anchor=(0., 1.005, 1., .10), loc=3,
            ncol=3, mode="expand", borderaxespad=0., fontsize=12, markerscale=1.5)
 plt.tick_params(labelsize=16)
 
-plt.savefig('/Users/zengly/Downloads/P2PNetwork/test/graphs/coordinate_attack_10.pdf',bbox_inches = 'tight')
+plt.savefig('/Users/zengly/Downloads/P2PNetwork/test/graphs/no_response_attack.pdf',bbox_inches = 'tight')
 plt.show()
 
