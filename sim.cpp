@@ -22,7 +22,7 @@ const double FIXED_DELAY = 250;
 const int ROOT_FANOUT = 64;
 const int SECOND_FANOUT = 64;
 const int FANOUT = 8;
-const int INNER_DEG = 4;
+const int INNER_DEG = 2;
 const int MAX_TEST_N = 8000;
 const int MAX_OUTBOUND = 8;
 //typedef unsigned int int;
@@ -699,7 +699,7 @@ vector<int> k_means_based_on_virtual_coordinate_subset(vector<int> subset) {
 }
 
 
-template <int root_fanout = ROOT_FANOUT, int second_fanout = SECOND_FANOUT, int fanout = FANOUT, bool enable_nearest = false>
+template <int root_fanout = ROOT_FANOUT, int second_fanout = SECOND_FANOUT, int fanout = FANOUT, bool enable_nearest = false, bool worst_attack = false>
 class k_means_cluster : public basic_algo {
 // k_means_cluster:
 // firstly build K clusters (K = 8)
@@ -772,6 +772,7 @@ class k_means_cluster : public basic_algo {
             */
             }
 
+            /*
             for (int trial = 0, cnt = 0; trial < 100 && cnt < fanout - inner_deg; trial++) {
                 int j = random_num(n);
                 //if (cluster_result[i] == cluster_result[j])
@@ -779,6 +780,7 @@ class k_means_cluster : public basic_algo {
                 if (G.add_edge(i, j))
                     cnt++;
             }
+            */
 
             // build the near graph
             //std::deque<pair<double, int> > nearest_peer;
@@ -861,6 +863,14 @@ class k_means_cluster : public basic_algo {
         } else {
             remain_deg = fanout - ret.size();
         }
+
+        // !!!!!!!!!!!!!!!!!
+        // If worst_attack happens, we assume all the peer selection related to distance/coordinate/clustering fails
+        if (worst_attack == true) {
+            ret.clear();
+        }
+
+        //printf("remain deg %d\n", remain_deg);
 
         for (int i = 0; i < remain_deg; i++) {
             int v = rng() % n;
@@ -1751,11 +1761,20 @@ int main() {
     //simulation<block_p2p<8> >(rept, 0);
 
     //generate_virtual_coordinate();
-    generate_random_virtual_coordinate();
+    //generate_random_virtual_coordinate();
+    //k_means_based_on_virtual_coordinate();
+    //simulation<k_means_cluster<8, 8, 8, false> >(rept, 0.0);
+    //simulation<k_means_cluster<8, 8, 8, true> >(rept, mal_node);
+    //simulation<k_means_cluster<128, 8, 8, true> >(rept, mal_node);
+
+    generate_virtual_coordinate();
     k_means_based_on_virtual_coordinate();
     //simulation<k_means_cluster<8, 8, 8, false> >(rept, 0.0);
-    simulation<k_means_cluster<8, 8, 8, true> >(rept, mal_node);
-    simulation<k_means_cluster<128, 8, 8, true> >(rept, mal_node);
+    simulation<k_means_cluster<128, 8, 8, true, false> >(rept, mal_node);
+    simulation<k_means_cluster<128, 8, 8, true, true> >(rept, mal_node);
+    //simulation<random_flood<4, 4, 4> >(rept, mal_node);
+
+    //simulation<k_means_cluster<128, 8, 8, true> >(rept, mal_node);
     //simulation<k_means_cluster<8, 8, 8, true> >(rept, 0.0);
     //simulation<k_means_cluster<16, 8, 8, true> >(rept, 0.0);
     //simulation<k_means_cluster<32, 8, 8, true> >(rept, 0.0);
