@@ -22,7 +22,7 @@ const double FIXED_DELAY = 250;
 const int ROOT_FANOUT = 64;
 const int SECOND_FANOUT = 64;
 const int FANOUT = 8;
-const int INNER_DEG = 2;
+const int INNER_DEG = 5;
 const int MAX_TEST_N = 8000;
 const int MAX_OUTBOUND = 8;
 //typedef unsigned int int;
@@ -922,9 +922,13 @@ class k_means_cluster_subset : public basic_algo {
         for (int i = 0; i < n; i++)  {
             std::mt19937 rng(i);
 
-            vector<int> subset;
-            std::sample(sample_from.begin(), sample_from.end(), std::back_inserter(subset), 
-                int((obs_percentage / 100.0) * n), rng);
+            // TODO: not sure if this is correct
+            int sample_n = int((obs_percentage / 100.0) * n);
+            vector<int> subset(sample_n);
+            //std::sample(sample_from.begin(), sample_from.end(), std::back_inserter(subset), 
+            //    int((obs_percentage / 100.0) * n), rng);
+            std::shuffle(sample_from.begin(), sample_from.end(), rng);
+            std::copy(sample_from.begin(), sample_from.begin() + sample_n, subset.begin());
 
             bool need_to_insert_i = true;
             for (int j = 0; j < subset.size(); j++) 
@@ -1362,6 +1366,10 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
 // When a node receives a message, it has 50ms delay to handle it. Then it sends to other nodes without delay.
 
     //srand(100);
+
+    std::default_random_engine generator;
+    std::normal_distribution<double> rand_latency(50.0, 10.0);
+
     test_result result;
 
     // initialize test algorithm class if it needs a specific root
@@ -1420,8 +1428,7 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
                 printf("\n");
             }
             */
-            double delay_time = FIXED_DELAY; // delay_time = 10ms per link for (auto v : relay_list) { double dist = 3 * distance(coord[u], coord[v]) + FIXED_DELAY; // rtt : 10 + distance(u, v)
-            //double delay_time = 0; // delay_time = 10ms per link
+            double delay_time = (FIXED_DELAY - 50) + std::min(std::max(rand_latency(generator), 0.0), 100.0);  // avg is 250ms, in simulation: make it 200ms + Gaussian(50, 10)
             for (auto v: relay_list) {
                 double dist = distance(coord[u], coord[v]) * 3;
                 if (msg.step == 0) {
@@ -1754,11 +1761,11 @@ int main() {
     init();
 
 
-    //k_means();
-    //simulation<random_flood<8, 8, 8> >(rept, mal_node);
+    k_means();
+    simulation<random_flood<8, 8, 8> >(rept, mal_node);
     //simulation<random_flood<16, 16, 16> >(rept, mal_node);
-    //simulation<perigee_ubc<6, 6, 8> >(rept, 0.0);
-    //simulation<block_p2p<8> >(rept, 0);
+    simulation<perigee_ubc<6, 6, 8> >(rept, 0.0);
+    simulation<block_p2p<8> >(rept, 0);
 
     //generate_virtual_coordinate();
     //generate_random_virtual_coordinate();
@@ -1769,9 +1776,9 @@ int main() {
 
     generate_virtual_coordinate();
     k_means_based_on_virtual_coordinate();
-    //simulation<k_means_cluster<8, 8, 8, false> >(rept, 0.0);
-    simulation<k_means_cluster<128, 8, 8, true, false> >(rept, mal_node);
-    simulation<k_means_cluster<128, 8, 8, true, true> >(rept, mal_node);
+    simulation<k_means_cluster<8, 8, 8, false> >(rept, 0.0);
+    //simulation<k_means_cluster<64, 8, 8, true, false> >(rept, mal_node);
+    simulation<k_means_cluster<128, 8, 8, true> >(rept, mal_node);
     //simulation<random_flood<4, 4, 4> >(rept, mal_node);
 
     //simulation<k_means_cluster<128, 8, 8, true> >(rept, mal_node);
