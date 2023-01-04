@@ -349,7 +349,7 @@ public:
                     Coordinate<D> last_coord = past_coord_queue.back();
                     if (last_coord.error() <= 0.3 && remote_coord.error() <= 0.3) {
                         double coord_diff = (last_coord.vector() - remote_coord.vector()).magnitude();
-                        if (coord_diff > 50) {
+                        if (coord_diff > 75) {
                             return;
                         }
                     }
