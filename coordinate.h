@@ -191,8 +191,8 @@ private:
     int UPDATE_ROUND;
 
 public:
-    //only update median per 50 observation 
-    //static const int UPDATE_ROUND = std::min(50, max_data_point);
+    //only update median per min(50, int(max_data_point)) observation 
+
     HistoryStat(size_t _m) {
         max_data_point = _m;
         UPDATE_ROUND = std::min(50, int(max_data_point));
@@ -220,7 +220,7 @@ public:
     }
 
     // the median may not be the latest one
-    // it will update per 50 observation
+    // it will update per UPDATE_ROUND observation
     double get_median() {
         if (q.empty()) {
             return 0; 
@@ -248,9 +248,7 @@ public:
         std::vector<double> tmp;
         for (auto t: q) tmp.push_back(norm(t));
         std::sort(tmp.begin(), tmp.end());
-        //printf("{");
-        //for (auto t: tmp) printf("%.2f, ", t);
-        //printf("}\n");
+
     }
 };
 
@@ -336,11 +334,6 @@ public:
             it -> second.observe(rtt);
             double med = it -> second.get_median();
             rtt = med;
-            if (rtt == 10000) {
-                //it -> second.show();
-                //printf("\n");
-                //printf("self_id = %d, remote_id = %d\n", self_id, remote_id);
-            }
 
             auto itt = received_coord.find(remote_id);
             if (itt != received_coord.end()) {
@@ -374,11 +367,9 @@ public:
         //
         // 		es = | ||xi -  xj|| - rtt | / rtt
         //
-        //EuclideanVector<D> diff_vec = local_coord.vector() - remote_coord.vector();
-        //double diff_mag = diff_vec.magnitude();
+
         double predict_rtt = estimate_rtt(local_coord, remote_coord);
         double relative_error = std::fabs(predict_rtt - rtt) / rtt;
-        //printf("relative_error = %.2f\n", relative_error);
 
         // Update weighted moving average of local error (3)
         //
@@ -390,9 +381,6 @@ public:
         if (new_error < MIN_ERROR)
             new_error = MIN_ERROR;
 
-        if (new_error > local_coord.error()) {
-            //printf("DRIFTING\n");
-        }
 
         // Calculate the adaptive timestep (part of 4)
         //
@@ -412,9 +400,6 @@ public:
         if (weighted_force_magnitude > 100)
             return;
 
-        if (rtt == 10000) {
-            //printf("self_id = %d, w = %.2f\n", self_id, weighted_force_magnitude);
-        }
 
         // Unit vector (part of 4)
         //
@@ -425,10 +410,8 @@ public:
         if (v.is_zero()) {
             // if the coordinates are nearly the same, generate a random unit vector
             unit_v = random_unit_vector<D>();
-            //unit_v = unit_v / (1 + local_coord.height() + remote_coord.height());
         } else {
             // calculate the unit vector (remote ---> self)
-            //unit_v = v / v.magnitude();
             unit_v = v / predict_rtt;
         }
         // Calculate the new height of the local node:
@@ -454,8 +437,6 @@ public:
         double history_median = history_force_stat.get_median();
         double median_dev = history_force_stat.get_median_dev();
 
-        //if (std::fabs(weighted_force_magnitude) > 100)
-        //    return;
 
         if (enable_IN3 &&
             history_counter > 20 && 
@@ -464,11 +445,6 @@ public:
             //history_force_stat.show();
             //printf("w = %.2f Violates IN3: decelaration rule, remote_id = %d\n", weighted_force_magnitude, remote_id);
             return;
-        } else {
-            if (rtt == 10000) {
-                //history_force_stat.show();
-                //printf("Fail to avoid outlier w = %.2f, median = %.2f, dev = %.2f, history cnt = %d\n", weighted_force_magnitude, history_median, median_dev, history_counter);
-            }
         }
 
         if (enable_IN3)
