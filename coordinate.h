@@ -300,7 +300,7 @@ public:
         return it != peer_coord.end();
     }
 
-    // rtt -- round trip time (s) show()j
+    // rtt -- round trip time (s) show()
     void observe(int remote_id, Coordinate<D> remote_coord, double rtt) {
 
         //First check blacklist!

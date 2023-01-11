@@ -683,7 +683,7 @@ template<int root_fanout = ROOT_FANOUT, int fanout = FANOUT, int max_outbound = 
 class perigee_ubc : public basic_algo {
 // perigee_ubc
 // https://arxiv.org/pdf/2006.14186.pdf
-// Firstly, execute warmup phase for 100 random messages.
+// Firstly, execute warmup phase for 640 random messages.
 // For an edge (u, v), node v will maintain an observation array O.
 // When u is sending a message m to v, v will store the timestamp of the 
 // receiving time T(u, v, m), and the time difference since v firstly sees the message: 
@@ -700,7 +700,7 @@ class perigee_ubc : public basic_algo {
 
     // use for warmup phase
     static constexpr int total_warmup_message = 640;
-    static constexpr int warmup_round_len = 10; // for every 100 message, execute a reselection
+    static constexpr int warmup_round_len = 10; // for every 10 message, execute a reselection
     int recv_flag[N]; // keep track of the newest warmup message token
     double recv_time[N];  // record the new message deliever time
 
@@ -765,7 +765,7 @@ class perigee_ubc : public basic_algo {
                         double delay_time = 0;
                         if (u == root) delay_time = 0;
                         for (auto v : relay_list) {
-                            double dist = distance(coord[u], coord[v]) * 3 + FIXED_DELAY; // rtt : 10 + distance(u, v)
+                            double dist = distance(coord[u], coord[v]) * 3 + FIXED_DELAY; 
                             message new_msg = message(root, u, v, msg.step + 1, recv_time[u] + delay_time, recv_time[u] + dist + delay_time);
                             msg_queue.push(new_msg);
                         }
@@ -783,10 +783,11 @@ class perigee_ubc : public basic_algo {
                 int kill_cnt = 0;
                 for (int i = 0; i < n; i++)  {
                     if (neighbor_reselection(i) == 1) {
+                        //printf("obs size %d\n", obs[i].size());
                         kill_cnt += 1;
                     }
                 }
-                printf("round = %d, kill = %d\n", warmup_message / warmup_round_len, kill_cnt);
+                //printf("round = %d, kill = %d\n", warmup_message / warmup_round_len, kill_cnt);
                 //printf("finish\n");
             }
         }
@@ -813,10 +814,10 @@ class perigee_ubc : public basic_algo {
         avg_outbound /= n;
         printf("avg_outbound = %.3f\n", avg_outbound);
 
-        for (int i = 0; i < 20; i++) {
-            out_bound_pdf[i] /= n;
-            printf("outbound[%d] = %.3f\n", i, out_bound_pdf[i]);
-        }
+        //for (int i = 0; i < 20; i++) {
+        //    out_bound_pdf[i] /= n;
+        //    printf("outbound[%d] = %.3f\n", i, out_bound_pdf[i]);
+        //}
     }
 
     // if reselect -- return 1
@@ -1064,12 +1065,11 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
 
         int recv_count = 0;
         double avg_latency = 0;
-        int not_re_num = 0;
+
         for (int i = 0; i < n; i++)
             if (recv_flag[i] == false && mal_flag[i] == false) {
                 //printf("not receive %d\n", i);
                 recv_time[i] = inf;
-                not_re_num++;
                 recv_list.push_back(i);
                 depth[i] = MAX_DEPTH - 1; //uncovered node
             } else {
@@ -1081,7 +1081,7 @@ test_result single_root_simulation(int root, int rept_time, double mal_node, sha
                 result.cluster_avg_depth[c] += depth[i];
                 result.cluster_avg_latency[c] += recv_time[i];
             }
-        printf("not receive %d\n", not_re_num);
+
         avg_latency /= recv_count;
         for (int c = 0; c < K; c++) {
             result.cluster_avg_depth[c] /= cluster_recv_count[c];
@@ -1341,20 +1341,21 @@ int main() {
     init();
 
     //MERCURY
-    //generate_virtual_coordinate();
-    //k_means_based_on_virtual_coordinate();
-    //simulation<k_means_cluster<128, 8, 8, true> >(rept, mal_node);
+    generate_virtual_coordinate();
+    k_means_based_on_virtual_coordinate();
+    simulation<k_means_cluster<128, 8, 8, true> >(rept, mal_node);
     //MERCURYCLUSTER(with the early outburset optimization disabled)
     //simulation<k_means_cluster<8, 8, 8, true> >(rept, mal_node);
 
     //RANDOM
-    //simulation<random_flood<16, 16, 16> >(rept, mal_node);
+    //simulation<random_flood<8, 8, 8> >(rept, mal_node);
 
     //Perigee
-    k_means();
     //simulation<perigee_ubc<6, 6, 8> >(rept, mal_node);
+    
     //BlockP2P
-    simulation<block_p2p<8> >(rept, mal_node);
+    //k_means();
+    //simulation<block_p2p<8> >(rept, mal_node);
 
 
     return 0;
