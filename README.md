@@ -28,7 +28,7 @@ Main files:
 
 IF YOU USE THIS DATA SET IN ANY PUBLISHED RESEARCH, PLEASE KINDLY CITE THE FOLLOWING PAPER:
 
-Mingxun Zhou\*, Liyi Zeng\*, Yilin Han, Peilun Li, Fan Long, Dong Zhou, Ivan Beschastnikh, Ming Wu, "MERCURY: Fast Transaction Broadcast in High Performance Blockchain Systems", IEEE INFOCOM 2023.(\* The first two authors contributed equally)
+Mingxun Zhou\*, Liyi Zeng\*, Yilin Han, Peilun Li, Fan Long, Dong Zhou, Ivan Beschastnikh, Ming Wu, "MERCURY: Fast Transaction Broadcast in High Performance Blockchain Systems", IEEE INFOCOM 2023-IEEE Conference on Computer Communications. IEEE, 2023.(\* These authors contributed equally)
 
 # Contacts
 
