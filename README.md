@@ -1,21 +1,35 @@
-# P2PNetwork
+# Introduction
+
+The simulation source code in our paper **MERCURY: Fast Transaction Broadcast in High
+Performance Blockchain Systems(Accepted by [INFOCOM 2023](https://infocom2023.ieee-infocom.org/program/accepted-paper-list-main-conference))** is available here.
+
+**MERCURY** shortens the transaction propagation delay using two techniques: a virtual
+coordinate system and an early outburst strategy. 
+Our simulation results show that **MERCURY** outperforms prior propagation schemes and decreases overall propagation latency by up to 44% compared with Random mechanism.
+When implemented in [Conflux](https://confluxnetwork.org/), an open-source high-throughput blockchain system, **MERCURY** reduces transaction propagation latency by over 50% with less than 5% bandwidth overhead.
+Please review our paper for more details.
+
+# Installation
 
 In linux environment:
 
 ```
 make
 ./sim
-./coordinate_test
 ```
-
-
 
 Main files:
 
 1. `sim.cpp`: the simulation code
-2. `proj.py`: the visualization code
-3. `ip_geo.py`: reads ip from `ip_res.csv`, converts them to geolocation. 
-4. `geolocation.txt`: geolocation input, used by sim.cpp
-5. `tree_struct.txt`: tree structure created by the simulation experiment
-6. `coordinate.h`: the implementation of vivaldi algorithm
-7. `coordinate_test.cpp`: test code for the vivaldi algorithm
+2. `coordinate.h`: the implementation of vivaldi algorithm
+3. `geolocation.txt`: geolocation input, used by sim.cpp
+
+# Citation
+
+IF YOU USE THIS SIMULATION CODE IN ANY PUBLISHED RESEARCH, PLEASE KINDLY CITE THE FOLLOWING PAPER:
+
+Mingxun Zhou\*, Liyi Zeng\*, Yilin Han, Peilun Li, Fan Long, Dong Zhou, Ivan Beschastnikh, Ming Wu, "MERCURY: Fast Transaction Broadcast in High Performance Blockchain Systems", IEEE INFOCOM 2023-IEEE Conference on Computer Communications. IEEE, 2023.(\* The first two authors contributed equally)
+
+# Contacts
+
+Email: mingxunz@andrew.cmu.edu, zengly17@mails.tsinghua.edu.cn.
